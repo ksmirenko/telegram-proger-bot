@@ -23,8 +23,9 @@ import java.io.IOException;
 
 
 public class CodeHighlighter {
-    private final String USER_AGENT = "Mozilla/5.0";
+    private static final String PYGMENTS_URL = "http://pygments.simplabs.com/";
 
+    // adds styles (colors) to pygmentized code
     private static String addStyles(String highlightedCode) {
         try {
             // loading token from locally stored file
@@ -32,6 +33,7 @@ public class CodeHighlighter {
             InputStream inputStream =
                     MainServlet.class.getClassLoader().getResourceAsStream("code-highlight-styles.properties");
             prop.load(inputStream);
+            // TODO: load properties only once
             String prefix = prop.getProperty("json.prefix");
             String suffix = prop.getProperty("json.suffix");
             return prefix + highlightedCode + suffix;
@@ -42,27 +44,26 @@ public class CodeHighlighter {
         }
     }
 
-    public static void sendPost(String language, String content, String chatId, String apiUrl) throws Exception {
-
-        String url = "http://pygments.simplabs.com/";
-
+    public static HttpResponse sendPost(String language, String content, String chatId, String apiUrl) throws Exception {
+        // creating and sending HTTP request to Pygments
+        // TODO: get rid of deprecated code
         org.apache.http.client.HttpClient client = new DefaultHttpClient();
-        HttpPost post = new HttpPost(url);
-
+        HttpPost post = new HttpPost(PYGMENTS_URL);
         List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
         urlParameters.add(new BasicNameValuePair("lang", language));
         urlParameters.add(new BasicNameValuePair("code", content));
         post.setEntity(new UrlEncodedFormEntity(urlParameters));
-
         HttpResponse response = client.execute(post);
-        System.out.println("\nSending 'POST' request to URL : " + url);
+
+        // printing pygments request info
+        System.out.println("\nSending 'POST' request to URL : " + PYGMENTS_URL);
         System.out.println("Post parameters : " + post.getEntity());
         System.out.println("Response Code : " +
                 response.getStatusLine().getStatusCode());
 
+        // parsing Pygments response
         BufferedReader rd = new BufferedReader(
                 new InputStreamReader(response.getEntity().getContent()));
-
         StringBuffer result = new StringBuffer();
         String line = "";
         while ((line = rd.readLine()) != null) {
@@ -71,19 +72,19 @@ public class CodeHighlighter {
         }
         result.deleteCharAt(result.length() - 1);
 
+        // printing parsed pygmentized code
         System.out.println(result.toString());
 
+        // generating and obtaining image out of colored code
         HtmlImageGenerator imageGenerator = new HtmlImageGenerator();
         imageGenerator.loadHtml(addStyles(result.toString()));
+        // TODO: fix hardcoded file name
         imageGenerator.saveAsImage("hello-world.png");
-
-        HttpPost post1 = new HttpPost(apiUrl + "/sendPhoto");
-
         File photoFile = new File("hello-world.png");
 
+        HttpPost post1 = new HttpPost(apiUrl + "/sendPhoto");
         HttpEntity entity = (MultipartEntityBuilder.create()
                 .addBinaryBody("photo", photoFile)).addTextBody("chat_id", chatId).build();
-
         post1.setEntity(entity);
         CloseableHttpClient client1 = HttpClientBuilder.create().build();
         HttpResponse response1 = null;
@@ -94,6 +95,6 @@ public class CodeHighlighter {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        return response1;
     }
 }

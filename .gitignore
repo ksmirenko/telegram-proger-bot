@@ -32,6 +32,11 @@ auth.properties
 
 # Created by .ignore support plugin (hsz.mobi)
 
+### Kotlin
+annotations/
+
+### Misc
+
 # Upload to GAE script
 upload_to_gae.cmd
 
