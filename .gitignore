@@ -31,3 +31,6 @@ hs_err_pid*
 auth.properties
 
 # Created by .ignore support plugin (hsz.mobi)
+
+# Upload to GAE script
+upload_to_gae.cmd
