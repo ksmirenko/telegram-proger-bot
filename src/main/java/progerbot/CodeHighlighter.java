@@ -12,6 +12,14 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.HttpEntity;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.impl.client.CloseableHttpClient;
+
+import java.io.File;
+import java.io.IOException;
 
 
 public class CodeHighlighter {
@@ -34,23 +42,16 @@ public class CodeHighlighter {
         }
     }
 
-    // HTTP POST request
-    private void sendPost() throws Exception {
+    public static void sendPost(String language, String content, String chatId, String apiUrl) throws Exception {
 
-        //String url = "https://selfsolve.apple.com/wcResults.do";
         String url = "http://pygments.simplabs.com/";
 
         org.apache.http.client.HttpClient client = new DefaultHttpClient();
         HttpPost post = new HttpPost(url);
 
-        // add header
-        post.setHeader("User-Agent", USER_AGENT);
-
         List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-
-        urlParameters.add(new BasicNameValuePair("lang", "java"));
-        urlParameters.add(new BasicNameValuePair("code", "if (foo) then\n\tbar();\nelse\n\treturn;"));
-
+        urlParameters.add(new BasicNameValuePair("lang", language));
+        urlParameters.add(new BasicNameValuePair("code", content));
         post.setEntity(new UrlEncodedFormEntity(urlParameters));
 
         HttpResponse response = client.execute(post);
@@ -73,39 +74,18 @@ public class CodeHighlighter {
         System.out.println(result.toString());
 
         HtmlImageGenerator imageGenerator = new HtmlImageGenerator();
-        //imageGenerator.loadHtml("<b>Hello World!</b> Please goto <a title=\"Goto Google\" href=\"http://www.google.com\">Google</a>.");
         imageGenerator.loadHtml(addStyles(result.toString()));
         imageGenerator.saveAsImage("hello-world.png");
 
-        //imageGenerator.saveAsHtmlWithMap("hello-world.html", "hello-world.png");
+        HttpPost post1 = new HttpPost(apiUrl + "/sendPhoto");
 
-        //BufferedImage img = imageGenerator.getBufferedImage();
-        //File f = new File("TEST_PNG_PICTURE.png");
-        //ImageIO.write(img, "PNG", f);
+        File photoFile = new File("hello-world.png");
 
-/*
-
-        BufferedImage img = null;
-        try {
-            img = ImageIO.read(new File("pic.png"));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        HttpPost post1 = new HttpPost("server_address");
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            ImageIO.write(img, "png", baos);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        HttpEntity entity = MultipartEntityBuilder.create()
-                .addBinaryBody("file_attach", baos.toByteArray()).build();
+        HttpEntity entity = (MultipartEntityBuilder.create()
+                .addBinaryBody("photo", photoFile)).addTextBody("chat_id", chatId).build();
 
         post1.setEntity(entity);
-        HttpClient client1 = HttpClientBuilder.create().build();
+        CloseableHttpClient client1 = HttpClientBuilder.create().build();
         HttpResponse response1 = null;
         try {
             response1 = client1.execute(post1);
@@ -114,18 +94,6 @@ public class CodeHighlighter {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }*/
-    }
-
-    public static void main(String[] args) throws Exception {
-
-        CodeHighlighter http = new CodeHighlighter();
-
-        //System.out.println("Testing 1 - Send Http GET request");
-        //http.sendGet();
-
-        System.out.println("\nTesting 2 - Send Http POST request");
-        http.sendPost();
 
     }
 }

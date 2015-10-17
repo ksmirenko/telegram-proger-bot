@@ -58,23 +58,25 @@ public class MainServlet {
     }
 
     //gets a message object and handles it
-    public static void messageHandler(JSONObject json) throws IOException, JSONException {
+    public static void messageHandler(JSONObject json) throws IOException, JSONException, Exception {
         String textMessage = json.getJSONObject("message").getString("text");
         String chatId = Integer.toString(json.getJSONObject("message").getJSONObject("chat").getInt("id"));
         JSONObject response;
-        switch (textMessage) {
-            case "/help":
-                response = readJsonFromUrl(url + "/sendmessage?" + "chat_id=" + chatId + "&" +
-                        "text=" + "Supported commands:  /help  /start");
-                break;
-            case "/start":
-                response = readJsonFromUrl(url + "/sendmessage?" + "chat_id=" + chatId + "&" +
-                        "text=" + "I`m Intelligent Proger Bot. Let`s start!");
-                break;
-            default:
-                response = readJsonFromUrl(url + "/sendmessage?" + "chat_id=" + chatId + "&" +
-                        "text=" + textMessage);
-                break;
+        if (textMessage.startsWith("/help")) {
+            response = readJsonFromUrl(url + "/sendmessage?" + "chat_id=" + chatId + "&" +
+                    "text=" + "Supported commands:  /help  /start");
+        }
+        else if (textMessage.startsWith("/start")) {
+            response = readJsonFromUrl(url + "/sendmessage?" + "chat_id=" + chatId + "&" +
+                    "text=" + "I`m Intelligent Proger Bot. Let`s start!");
+        }
+        else if (textMessage.startsWith("/highlight ")) {
+            String[] splitMessage = textMessage.split(" ", 3);
+            CodeHighlighter.sendPost(splitMessage[1], splitMessage[2], chatId, url);
+        }
+        else {
+            response = readJsonFromUrl(url + "/sendmessage?" + "chat_id=" + chatId + "&" +
+                    "text=" + textMessage);
         }
     }
 
@@ -82,7 +84,7 @@ public class MainServlet {
         updateId = json.getInt("update_id") + 1;
     }
 
-    public static void main(String[] args) throws IOException, JSONException {
+    public static void main(String[] args) throws IOException, JSONException, Exception {
         while (true) {
             JSONObject json = readJsonFromUrl(url + "/getupdates" + "?offset=" + Integer.toString(updateId)
                     + "&timeout=60");

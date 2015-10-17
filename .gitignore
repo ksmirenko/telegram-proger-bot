@@ -34,3 +34,6 @@ auth.properties
 
 # Upload to GAE script
 upload_to_gae.cmd
+
+# Temp image
+hello-world.png
