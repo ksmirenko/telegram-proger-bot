@@ -1,38 +1,39 @@
-package myapp;
-
-import java.io.*;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.Properties;
-import java.util.Scanner;
+package progerbot;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class MainServlet {
+import java.io.*;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.Properties;
 
+public class MainServlet {
     private static int updateId = 0;
 
+    private static final Boolean isTokenHardcoded = false;
     private static final String apiUrl = "https://api.telegram.org/bot";
-    private static final String url;
+    private static String url = "";
 
     static {
-        // loading token from locally stored file
-        Properties prop = new Properties();
-        String token = "";
-        try {
+        if (!isTokenHardcoded) {
+            // loading token from locally stored file
+            Properties prop = new Properties();
+            String token = "";
+            try {
 
-            InputStream inputStream =
-                    MainServlet.class.getClassLoader().getResourceAsStream("auth.properties");
+                InputStream inputStream =
+                        MainServlet.class.getClassLoader().getResourceAsStream("auth.properties");
 
-            prop.load(inputStream);
-            token = prop.getProperty("json.token");
+                prop.load(inputStream);
+                token = prop.getProperty("json.token");
 
-        } catch (IOException e) {
-            e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            url = apiUrl + token;
         }
-        url = apiUrl + token;
     }
 
     private static String readAll(Reader rd) throws IOException {
