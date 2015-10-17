@@ -3,6 +3,7 @@ package progerbot;
 import java.io.*;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import gui.ava.html.image.generator.HtmlImageGenerator;
 import org.apache.http.HttpResponse;
@@ -15,6 +16,23 @@ import org.apache.http.message.BasicNameValuePair;
 
 public class CodeHighlighter {
     private final String USER_AGENT = "Mozilla/5.0";
+
+    private static String addStyles(String highlightedCode) {
+        try {
+            // loading token from locally stored file
+            Properties prop = new Properties();
+            InputStream inputStream =
+                    MainServlet.class.getClassLoader().getResourceAsStream("code-highlight-styles.properties");
+            prop.load(inputStream);
+            String prefix = prop.getProperty("json.prefix");
+            String suffix = prop.getProperty("json.suffix");
+            return prefix + highlightedCode + suffix;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
 
     // HTTP POST request
     private void sendPost() throws Exception {
@@ -31,7 +49,7 @@ public class CodeHighlighter {
         List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
 
         urlParameters.add(new BasicNameValuePair("lang", "java"));
-        urlParameters.add(new BasicNameValuePair("code", "if (x == true) then false else true"));
+        urlParameters.add(new BasicNameValuePair("code", "if (foo) then\n\tbar();\nelse\n\treturn;"));
 
         post.setEntity(new UrlEncodedFormEntity(urlParameters));
 
@@ -48,13 +66,15 @@ public class CodeHighlighter {
         String line = "";
         while ((line = rd.readLine()) != null) {
             result.append(line);
+            result.append("\n");
         }
+        result.deleteCharAt(result.length() - 1);
 
         System.out.println(result.toString());
 
         HtmlImageGenerator imageGenerator = new HtmlImageGenerator();
         //imageGenerator.loadHtml("<b>Hello World!</b> Please goto <a title=\"Goto Google\" href=\"http://www.google.com\">Google</a>.");
-        imageGenerator.loadHtml(result.toString());
+        imageGenerator.loadHtml(addStyles(result.toString()));
         imageGenerator.saveAsImage("hello-world.png");
 
         //imageGenerator.saveAsHtmlWithMap("hello-world.html", "hello-world.png");
