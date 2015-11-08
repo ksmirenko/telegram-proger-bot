@@ -19,13 +19,17 @@ object MainServlet {
 
     private var updateId = 0
     private val isLogging = true
+    private var token = ""
     private var url = ""
+
+    //contains pairs(ID, progrLang) of IDs of chats there bot was requested to highlight file and requested languages
+    //TODO: remove old requests
+    private val requestsToHighlightFile = LinkedList<Pair<String, String>>()
 
     init {
         if (!isTokenHardcoded) {
             // loading token from locally stored file
             val prop = Properties()
-            var token = ""
             try {
                 val inputStream = MainServlet::class.java.classLoader.getResourceAsStream("auth.properties")
                 prop.load(inputStream)
@@ -39,12 +43,13 @@ object MainServlet {
         }
     }
 
-    fun fetchUrlResponse(url : String) : String {
+    fun fetchUrlResponse(url : String, separateLines : Boolean = false) : String {
         val inputStream = URL(url).openStream()
         try {
             val rd = InputStreamReader(inputStream, Charset.forName("UTF-8"))
             val sb = StringBuilder()
-            rd.forEachLine { sb.append(it) }
+            if (separateLines) rd.forEachLine { sb.append(it); sb.append("\n") }
+            else rd.forEachLine { sb.append(it) }
             return sb.toString()
         } finally {
             inputStream.close()
@@ -53,29 +58,67 @@ object MainServlet {
 
     // handles a message from Telegram user
     fun handleMessage(json : JSONObject) {
-        val textMessage : String = json.getJSONObject("message").getString("text")
-        val chatId = Integer.toString(json.getJSONObject("message").getJSONObject("chat").getInt("id"))
-        // TODO: make them all HttpResponses
-        val responseCode : Boolean
+        val chatId: String = Integer.toString(json.getJSONObject("message").getJSONObject("chat").getInt("id"))
+        val responseCode: Boolean
         when {
-            textMessage.startsWith("/help") -> {
-                val response = fetchUrlResponse("$url/sendmessage?chat_id=$chatId&text=$helpMessage")
-                val json = JSONObject(response)
-                responseCode = json.getBoolean("ok")
+            json.getJSONObject("message").has("text") -> {
+                val textMessage: String = json.getJSONObject("message").getString("text")
+                // TODO: make them all HttpResponses
+                when {
+                    textMessage.startsWith("/help") -> {
+                        val response = fetchUrlResponse("$url/sendmessage?chat_id=$chatId&text=$helpMessage")
+                        val json = JSONObject(response)
+                        responseCode = json.getBoolean("ok")
+                    }
+                    textMessage.startsWith("/start") -> {
+                        val response = fetchUrlResponse("$url/sendmessage?chat_id=$chatId&text=I'm Intelligent Proger Bot. Let's start!")
+                        val json = JSONObject(response)
+                        responseCode = json.getBoolean("ok")
+                    }
+                    textMessage.startsWith("/highlight ") -> {
+                        val splitMessage = textMessage.split(" ".toRegex(), 3)
+                        responseCode = CodeHighlighter.manageCodeHighlightRequest(splitMessage[1], splitMessage[2], chatId, url)
+                    }
+                    textMessage.startsWith("/highlightFile ") -> {
+                        val splitMessage = textMessage.split(" ".toRegex(), 2)
+                        val requestsIterator = requestsToHighlightFile.iterator()
+                        while (requestsIterator.hasNext())
+                            if (requestsIterator.next().first == chatId) {
+                                requestsIterator.remove()
+                                break
+                            }
+                        requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
+                    }
+                    else -> {
+                        val response = fetchUrlResponse("$url/sendmessage?chat_id=$chatId&text=NO%20U%20$textMessage")
+                        val json = JSONObject(response)
+                        responseCode = json.getBoolean("ok")
+                    }
+                }
             }
-            textMessage.startsWith("/start") -> {
-                val response = fetchUrlResponse("$url/sendmessage?chat_id=$chatId&text=I'm Intelligent Proger Bot. Let's start!")
-                val json = JSONObject(response)
-                responseCode = json.getBoolean("ok")
-            }
-            textMessage.startsWith("/highlight ") -> {
-                val splitMessage = textMessage.split(" ".toRegex(), 3)
-                responseCode = CodeHighlighter.manageCodeHighlightRequest(splitMessage[1], splitMessage[2], chatId, url)
-            }
-            else -> {
-                val response = fetchUrlResponse("$url/sendmessage?chat_id=$chatId&text=NO%20U%20$textMessage")
-                val json = JSONObject(response)
-                responseCode = json.getBoolean("ok")
+            json.getJSONObject("message").has("document") -> {
+                var language = ""
+                var fileRequestedToHighlight = false
+                val requestsIterator = requestsToHighlightFile.iterator()
+                while (requestsIterator.hasNext()) {
+                    val pair = requestsIterator.next()
+                    if (pair.first == chatId) {
+                        fileRequestedToHighlight = true
+                        language = pair.second
+                        requestsIterator.remove()
+                        break
+                    }
+                }
+                if (fileRequestedToHighlight) {
+                    val response = fetchUrlResponse("$url/getFile?file_id=" +
+                            "${json.getJSONObject("message").getJSONObject("document").getString("file_id")}")
+                    val json = JSONObject(response)
+                    if (json.getBoolean("ok")) {
+                        val code = fetchUrlResponse("https://api.telegram.org/file/bot" +
+                                "$token/${json.getJSONObject("result").getString("file_path")}", true)
+                        responseCode = CodeHighlighter.manageCodeHighlightRequest(language, code, chatId, url)
+                    }
+                }
             }
         }
     }

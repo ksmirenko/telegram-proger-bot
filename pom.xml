@@ -11,7 +11,7 @@
     <artifactId>telegram-proger-bot</artifactId>
 
     <properties>
-        <kotlin.version>0.14.451</kotlin.version>
+        <kotlin.version>1.0.0-beta-1103</kotlin.version>
         <appengine.app.version>1</appengine.app.version>
         <appengine.target.version>1.9.27</appengine.target.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
