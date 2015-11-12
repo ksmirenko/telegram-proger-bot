@@ -74,6 +74,7 @@ object CodeHighlighter {
         println("{{$coloredCode}}")*/
         imageGenerator.loadHtml(coloredCode)
         // TODO: fix hardcoded file name
+        imageGenerator.bufferedImage
         imageGenerator.saveAsImage("hello-world.png")
         val photoFile = File("hello-world.png")
 
