@@ -23,26 +23,29 @@ import java.io.IOException
 
 object CodeHighlighter {
     private val PYGMENTS_URL = "http://pygments.simplabs.com/"
+    private val prefix : String
+    private val suffix : String
 
-    // adds styles (colors) to pygmentized code
-    private fun addStyles(highlightedCode : String) : String {
+    init {
         try {
             // loading token from locally stored file
             val prop = Properties()
             val inputStream = MainServlet::class.java.
-                classLoader.getResourceAsStream("code-highlight-styles.properties")
+                    classLoader.getResourceAsStream("res.properties")
             prop.load(inputStream)
-            // TODO: load properties only once
-            val prefix = prop.getProperty("json.highlightPrefix")
-            val suffix = prop.getProperty("json.highlightSuffix")
-            return prefix + highlightedCode + suffix
+            prefix = prop.getProperty("json.highlightPrefix")
+            suffix = prop.getProperty("json.highlightSuffix")
 
-        } catch (e : IOException) {
-            e.printStackTrace()
-            return ""
         }
-
+        catch (e : IOException) {
+            e.printStackTrace()
+            prefix = ""
+            suffix = ""
+        }
     }
+
+    // adds styles (colors) to pygmentized code
+    private fun addStyles(highlightedCode : String) = prefix + highlightedCode + suffix
 
     fun manageCodeHighlightRequest(language : String, content : String, chatId : String, apiUrl : String) : Boolean {
         // creating HTTP request fot pygmentization
@@ -81,16 +84,18 @@ object CodeHighlighter {
         // sending the image back to user
         val post1 = HttpPost(apiUrl + "/sendPhoto")
         val entity = (MultipartEntityBuilder.create().
-            addBinaryBody("photo", photoFile)).addTextBody("chat_id", chatId).build()
+                addBinaryBody("photo", photoFile)).addTextBody("chat_id", chatId).build()
         post1.entity = entity
         val telegramClient = HttpClientBuilder.create().build()
         try {
             val telegramResponse = telegramClient.execute(post1)
             return telegramResponse.statusLine.statusCode == 200
-        } catch (e : ClientProtocolException) {
+        }
+        catch (e : ClientProtocolException) {
             e.printStackTrace()
             return false
-        } catch (e : IOException) {
+        }
+        catch (e : IOException) {
             e.printStackTrace()
             return false
         }
