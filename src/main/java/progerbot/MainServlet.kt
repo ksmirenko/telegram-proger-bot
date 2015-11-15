@@ -8,6 +8,7 @@ import java.io.InputStreamReader
 import java.net.URL
 import java.nio.charset.Charset
 import java.util.*
+import java.util.concurrent.Executors
 
 object MainServlet {
     private val telegramUrl = "https://api.telegram.org/bot"
@@ -15,10 +16,12 @@ object MainServlet {
     private val isLogging = true
     private val apiUrl : String
     private val helpMessage : String
-    private var token = "" // sometimes we need it separately from the url
+    private var token = "" // sometimes we use it separately from the url
 
     private var updatesOffset = 0
 
+    // main thread pool for handling user messages
+    private val pool = Executors.newFixedThreadPool(8);
     //contains pairs(ID, progrLang) of IDs of chats there bot was requested to highlight file and requested languages
     //TODO: remove old requests
     private val requestsToHighlightFile = LinkedList<Pair<String, String>>()
@@ -139,22 +142,28 @@ object MainServlet {
             println(s)
     }
 
-    @JvmStatic fun main(args : Array<String>) {
+    @JvmStatic
+    fun main(args : Array<String>) {
         // main loop which obtains new user messages
         while (true) {
+            // requesting new messges
             val telegramResponse = fetchUrlResponse(apiUrl + "/getupdates?offset=" + Integer.toString(updatesOffset) + "&timeout=60")
             logprintln(telegramResponse)
             val json = JSONObject(telegramResponse)
             if (json.getBoolean("ok")) {
-                var counter = 0
+                // successfully obtained messages; handling them one by one
                 val messageArray = json.getJSONArray("result")
                 val messageArrayLength = messageArray.length()
+                var counter = 0
                 while (counter < messageArrayLength) {
-                    try {
-                        handleMessage(messageArray.getJSONObject(counter))
-                    }
-                    catch (e : Exception) {
-                        logprintln("Request handling failed because of ${e.toString()}")
+                    val message = messageArray.getJSONObject(counter)
+                    pool.execute {
+                        try {
+                            handleMessage(message)
+                        }
+                        catch (e : Exception) {
+                            logprintln("Request handling failed because of ${e.toString()}")
+                        }
                     }
                     counter++
                 }

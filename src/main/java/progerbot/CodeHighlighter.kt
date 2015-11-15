@@ -1,24 +1,19 @@
 package progerbot
 
-import java.io.*
-import java.util.ArrayList
-import java.util.Properties
-
 import gui.ava.html.image.generator.HtmlImageGenerator
-import org.apache.http.HttpResponse
 import org.apache.http.NameValuePair
+import org.apache.http.client.ClientProtocolException
 import org.apache.http.client.entity.UrlEncodedFormEntity
 import org.apache.http.client.methods.HttpPost
-import org.apache.http.impl.client.DefaultHttpClient
-import org.apache.http.message.BasicNameValuePair
-import org.apache.http.HttpEntity
-import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
-import org.apache.http.client.ClientProtocolException
-import org.apache.http.impl.client.CloseableHttpClient
-
-import java.io.File
+import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.message.BasicNameValuePair
+import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.InputStreamReader
+import java.util.*
+import javax.imageio.ImageIO
 
 
 object CodeHighlighter {
@@ -57,34 +52,25 @@ object CodeHighlighter {
         // sending HTTP request to Pygments
         val pygmentsClient = HttpClientBuilder.create().build()
         val response = pygmentsClient.execute(post)
-
-        // debug section: printing pygments request info
-        /* println("\nSending 'POST' request to URL : " + PYGMENTS_URL)
-        println("Post parameters : " + post.entity)
-        println("Response Code : " + response.statusLine.statusCode) */
-
         // parsing Pygments response
         val rd = InputStreamReader(response.entity.content)
         val result = StringBuffer()
         rd.forEachLine { result.append(it); result.append("\n") }
-        result.deleteCharAt(result.length() - 1)
-
+        result.deleteCharAt(result.length - 1)
         // generating and obtaining image out of colored code
         val imageGenerator = HtmlImageGenerator()
         val coloredCode = addStyles(result.toString())
-        // debug section: printing colored pygmentized code
-        /* println("{{${result.toString()}}}")
-        println("{{$coloredCode}}")*/
         imageGenerator.loadHtml(coloredCode)
-        // TODO: fix hardcoded file name
-        imageGenerator.bufferedImage
-        imageGenerator.saveAsImage("hello-world.png")
-        val photoFile = File("hello-world.png")
-
+        // converting buffered image to byte array for sending
+        val baos = ByteArrayOutputStream()
+        ImageIO.write(imageGenerator.bufferedImage, "png", baos);
+        val imageByteArray = baos.toByteArray()
         // sending the image back to user
         val post1 = HttpPost(apiUrl + "/sendPhoto")
-        val entity = (MultipartEntityBuilder.create().
-                addBinaryBody("photo", photoFile)).addTextBody("chat_id", chatId).build()
+        val entity = (MultipartEntityBuilder.create()
+                .addTextBody("chat_id", chatId)
+                .addBinaryBody("photo", imageByteArray, ContentType.MULTIPART_FORM_DATA, "image.png"))
+                .build()
         post1.entity = entity
         val telegramClient = HttpClientBuilder.create().build()
         try {
