@@ -16,7 +16,7 @@ import java.util.*
 import javax.imageio.ImageIO
 
 
-object CodeHighlighter {
+public object CodeHighlighter {
     private val PYGMENTS_URL = "http://pygments.simplabs.com/"
     private val prefix : String
     private val suffix : String

@@ -1,27 +1,27 @@
 package progerbot
 
-import org.apache.http.client.methods.HttpPost
-import org.apache.http.entity.mime.MultipartEntityBuilder
-import org.apache.http.impl.client.HttpClientBuilder
-import org.json.JSONObject
-import java.io.InputStreamReader
+import com.google.appengine.api.urlfetch.HTTPMethod
+import com.google.appengine.api.urlfetch.HTTPRequest
+import com.google.appengine.api.urlfetch.URLFetchServiceFactory
+import com.google.gson.Gson
+import telegram.Message
+import telegram.Update
 import java.net.URL
-import java.nio.charset.Charset
 import java.util.*
-import java.util.concurrent.Executors
+import javax.servlet.http.HttpServlet
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
-object MainServlet {
+public class MainServlet : HttpServlet() {
     private val telegramUrl = "https://api.telegram.org/bot"
     private val isTokenHardcoded = false
-    private val isLogging = true
     private val apiUrl : String
     private val helpMessage : String
-    private var token = "" // sometimes we use it separately from the url
+    private val token : String // sometimes we use it separately from the url
+    private val charset = "UTF-8"
+    private val isLogging = false
+    private val gson = Gson()
 
-    private var updatesOffset = 0
-
-    // main thread pool for handling user messages
-    private val pool = Executors.newFixedThreadPool(8);
     //contains pairs(ID, progrLang) of IDs of chats there bot was requested to highlight file and requested languages
     //TODO: remove old requests
     private val requestsToHighlightFile = LinkedList<Pair<String, String>>()
@@ -40,137 +40,112 @@ object MainServlet {
             prop.load(inputStreamToken)
             token = prop.getProperty("json.token")
         }
+        else {
+            token = "" // hardcoded token would be here
+        }
         apiUrl = telegramUrl + token
     }
 
-    fun fetchUrlResponse(url : String, separateLines : Boolean = false) : String {
-        val inputStream = URL(url).openStream()
-        try {
-            val rd = InputStreamReader(inputStream, Charset.forName("UTF-8"))
-            val sb = StringBuilder()
-            if (separateLines) rd.forEachLine { sb.append(it); sb.append("\n") }
-            else rd.forEachLine { sb.append(it) }
-            return sb.toString()
-        }
-        finally {
-            inputStream.close()
-        }
+    public override fun doGet(req : HttpServletRequest, resp : HttpServletResponse) {
+        resp.contentType = "text/plain"
+        resp.writer.println("I am alive!")
+    }
+
+    override fun doPost(req : HttpServletRequest, resp : HttpServletResponse) {
+        val update = parseClass(req, telegram.Update::class.java) as Update
+        val msg = update.message
+        if (msg != null)
+            handleMessage(msg)
+    }
+
+    private fun parseClass(req : HttpServletRequest, clazz : Class<out Any>) : Any {
+        val rd = req.reader
+        val sb = StringBuilder()
+        rd.forEachLine { sb.append(it); sb.append("\n") }
+        return gson.fromJson(sb.toString(), clazz)
     }
 
     fun sendTextMessage(chatId : String, text : String) : Boolean {
-        val post = HttpPost(apiUrl + "/sendMessage")
-        post.entity = (MultipartEntityBuilder.create().
-                addTextBody("chat_id", chatId).addTextBody("text", text)).build()
-        val telegramClient = HttpClientBuilder.create().build()
+        val post = HTTPRequest(URL("$apiUrl/sendMessage"), HTTPMethod.POST)
+        val content = "chat_id=$chatId&text=$text"
+        post.payload = content.toByteArray(charset)
         try {
-            val telegramResponse = telegramClient.execute(post)
-            return telegramResponse.statusLine.statusCode == 200
+            val telegramResponse = URLFetchServiceFactory.getURLFetchService().fetch(post)
+            return telegramResponse.responseCode == 200
         }
         catch (e : Exception) {
             e.printStackTrace()
             return false
         }
-        finally {
-            telegramClient.close()
-        }
     }
 
     // handles a message from Telegram user
-    fun handleMessage(jsonRequest : JSONObject) {
-        val chatId : String = Integer.toString(jsonRequest.getJSONObject("message").getJSONObject("chat").getInt("id"))
-        val success : Boolean
-        when {
-            jsonRequest.getJSONObject("message").has("text") -> {
-                val textMessage = jsonRequest.getJSONObject("message").getString("text")
-                when {
-                    textMessage.startsWith("/help") -> {
-                        success = sendTextMessage(chatId, helpMessage)
-                    }
-                    textMessage.startsWith("/start") -> {
-                        success = sendTextMessage(chatId, "I'm Intelligent Proger Bot. Let's start!")
-                    }
-                    textMessage.startsWith("/highlight ") -> {
-                        val splitMessage = textMessage.split(" ".toRegex(), 3)
-                        success = CodeHighlighter.manageCodeHighlightRequest(splitMessage[1], splitMessage[2], chatId, apiUrl)
-                    }
-                    textMessage.startsWith("/highlightFile ") -> {
-                        val splitMessage = textMessage.split(" ".toRegex(), 2)
-                        val requestsIterator = requestsToHighlightFile.iterator()
-                        // TODO: optimize it using Set
-                        while (requestsIterator.hasNext())
-                            if (requestsIterator.next().first == chatId) {
-                                requestsIterator.remove()
-                                break
-                            }
-                        requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
-                    }
-                    else -> {
-                        success = sendTextMessage(chatId, "NO U $textMessage")
-                    }
+    fun handleMessage(message : Message) {
+        val chatId : String = message.chat.id.toString()
+        var success = false
+        val text = message.text
+        if (text != null) {
+            when {
+                text.startsWith("/help") -> {
+                    success = sendTextMessage(chatId, helpMessage)
                 }
-            }
-            jsonRequest.getJSONObject("message").has("document") -> {
-                var language = ""
-                var fileRequestedToHighlight = false
-                val requestsIterator = requestsToHighlightFile.iterator()
-                // TODO: optimize it using Set
-                while (requestsIterator.hasNext()) {
-                    val pair = requestsIterator.next()
-                    if (pair.first == chatId) {
-                        fileRequestedToHighlight = true
-                        language = pair.second
-                        requestsIterator.remove()
-                        break
-                    }
+                text.startsWith("/start") -> {
+                    success = sendTextMessage(chatId, "I'm Intelligent Proger Bot. Let's start!")
                 }
-                if (fileRequestedToHighlight) {
-                    val response = fetchUrlResponse("$apiUrl/getFile?file_id=" +
-                            "${jsonRequest.getJSONObject("message").getJSONObject("document").getString("file_id")}")
-                    val json = JSONObject(response)
-                    if (json.getBoolean("ok")) {
-                        val code = fetchUrlResponse("https://api.telegram.org/file/bot" +
-                                "$token/${json.getJSONObject("result").getString("file_path")}", true)
-                        success = CodeHighlighter.manageCodeHighlightRequest(language, code, chatId, apiUrl)
-                    }
+                text.startsWith("/highlight ") -> {
+                    val splitMessage = text.split(" ".toRegex(), 3)
+                    success = CodeHighlighter.manageCodeHighlightRequest(
+                            splitMessage[1], splitMessage[2], chatId, apiUrl)
+                }
+                text.startsWith("/highlightFile ") -> {
+                    val splitMessage = text.split(" ".toRegex(), 2)
+                    val requestsIterator = requestsToHighlightFile.iterator()
+                    // TODO: optimize it using Set
+                    while (requestsIterator.hasNext())
+                        if (requestsIterator.next().first == chatId) {
+                            requestsIterator.remove()
+                            break
+                        }
+                    requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
+                }
+                else -> {
+                    success = sendTextMessage(chatId, "NO U $text")
                 }
             }
         }
+        val document = message.document
+        if (document != null) {
+            var language = ""
+            var fileRequestedToHighlight = false
+            val requestsIterator = requestsToHighlightFile.iterator()
+            // TODO: optimize it using a Set
+            while (requestsIterator.hasNext()) {
+                val pair = requestsIterator.next()
+                if (pair.first == chatId) {
+                    fileRequestedToHighlight = true
+                    language = pair.second
+                    requestsIterator.remove()
+                    break
+                }
+            }
+            if (fileRequestedToHighlight) {
+                val codeRequestResponse = URLFetchServiceFactory.getURLFetchService().fetch(
+                        URL("$apiUrl/getFile?file_id=${document.file_id}"))
+                if (codeRequestResponse.responseCode == 200) {
+                    val responseContent = codeRequestResponse.content.toString(charset)
+                    val file = gson.fromJson(responseContent, telegram.File::class.java)
+                    val sourceCode = URLFetchServiceFactory.getURLFetchService().fetch(
+                            URL("https://api.telegram.org/file/bot$token/${file.file_path}")
+                    ).content.toString(charset)
+                    success = CodeHighlighter.manageCodeHighlightRequest(language, sourceCode, chatId, apiUrl)
+                }
+            }
+        }
+        logprintln(success.toString())
     }
 
-    private fun logprintln(s : String) {
+    private fun logprintln(str : String) {
         if (isLogging)
-            println(s)
-    }
-
-    @JvmStatic
-    fun main(args : Array<String>) {
-        // main loop which obtains new user messages
-        while (true) {
-            // requesting new messges
-            val telegramResponse = fetchUrlResponse(apiUrl + "/getupdates?offset=" + Integer.toString(updatesOffset) + "&timeout=60")
-            logprintln(telegramResponse)
-            val json = JSONObject(telegramResponse)
-            if (json.getBoolean("ok")) {
-                // successfully obtained messages; handling them one by one
-                val messageArray = json.getJSONArray("result")
-                val messageArrayLength = messageArray.length()
-                var counter = 0
-                while (counter < messageArrayLength) {
-                    val message = messageArray.getJSONObject(counter)
-                    pool.execute {
-                        try {
-                            handleMessage(message)
-                        }
-                        catch (e : Exception) {
-                            logprintln("Request handling failed because of ${e.toString()}")
-                        }
-                    }
-                    counter++
-                }
-                if (counter > 0) {
-                    updatesOffset = messageArray.getJSONObject(counter - 1).getInt("update_id") + 1
-                }
-            }
-        }
+            println(str)
     }
 }
