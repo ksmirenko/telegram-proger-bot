@@ -148,6 +148,7 @@ public class MainServlet : HttpServlet() {
                     requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
                 }
                 text.startsWith("/StackOverflowConnect") -> {
+                    success = sendTextMessage(chatId, "Open this link to authorize the bot: " +
                             stackOverflow.StackOverflowAuthData.getAuthUrl(chatId))
                 }
                 else -> {
