@@ -53,11 +53,21 @@ public class MainServlet : HttpServlet() {
 
     /**
      * Handles GET requests to this server.
-     * Such requests are simply for testing server status
+     * Presumably requests are sent by user when he is redirected from StackOverflow.
      */
     public override fun doGet(req : HttpServletRequest, resp : HttpServletResponse) {
-        resp.contentType = "text/plain"
-        resp.writer.println("I am alive!")
+        /*resp.contentType = "text/plain"
+        resp.writer.println("I am alive!")*/
+        try {
+            val chatId = req.getParameter("state")
+            val code = req.getParameter("code")
+            val text = if (stackOverflow.StackOverflowAuthData.tryConfirmCode(chatId, code))
+                "Your StackOverflow account was connected successfully!"
+            else "Connection to StackOverflow failed"
+            sendTextMessage(chatId, text)
+        } catch (e : Throwable) {
+            Logger.println(e.message ?: "Cannot handle doGet : Unknown exception")
+        }
     }
 
     /**
@@ -136,6 +146,9 @@ public class MainServlet : HttpServlet() {
                             break
                         }
                     requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
+                }
+                text.startsWith("/StackOverflowConnect") -> {
+                            stackOverflow.StackOverflowAuthData.getAuthUrl(chatId))
                 }
                 else -> {
                     success = sendTextMessage(chatId, "NO U $text")

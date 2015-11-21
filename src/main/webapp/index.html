@@ -5,6 +5,10 @@
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
   </head>
   <body>
-    Hi! Telegram Proger Bot should be up and busy right now.
+  <form method="get" action="acceptOffer">
+    <input type="hidden" name="code" value="<%= request.getParameter(\"code\" )" %> />
+    <input type="hidden" name="state" value="<%= request.getParameter(\"state\" )" %> />
+    <input type="submit" value="Accept" class="sanslabel">
+  </form>
   </body>
 </html>
