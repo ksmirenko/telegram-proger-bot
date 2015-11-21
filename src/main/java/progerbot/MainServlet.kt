@@ -136,7 +136,7 @@ public class MainServlet : HttpServlet() {
                         success = false
                     }
                 }
-                text.startsWith("/highlightFile ") -> {
+                text.startsWith("/highlightfile ") -> {
                     val splitMessage = text.split(" ".toRegex(), 2)
                     val requestsIterator = requestsToHighlightFile.iterator()
                     // TODO: optimize it using Set
@@ -147,7 +147,7 @@ public class MainServlet : HttpServlet() {
                         }
                     requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
                 }
-                text.startsWith("/StackOverflowConnect") -> {
+                text.startsWith("/stackoverflowconnect") -> {
                     success = sendTextMessage(chatId, "Open this link to authorize the bot: " +
                             stackOverflow.StackOverflowAuthData.getAuthUrl(chatId))
                 }

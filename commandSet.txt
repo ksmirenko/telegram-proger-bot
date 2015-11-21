@@ -1,0 +1,5 @@
+start - Start the bot
+help - Show help
+highlight - Highlight a code snippet
+highlightfile - Highlight a code file
+stackoverflowconnect - Log in to stackoverflow.com
