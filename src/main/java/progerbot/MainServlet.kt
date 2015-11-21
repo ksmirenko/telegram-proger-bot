@@ -1,7 +1,6 @@
 package progerbot
 
 import com.google.appengine.api.urlfetch.HTTPMethod
-import com.google.appengine.api.urlfetch.HTTPRequest
 import com.google.appengine.api.urlfetch.URLFetchServiceFactory
 import com.google.gson.Gson
 import telegram.Message
@@ -12,6 +11,9 @@ import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
+/**
+ * Main servlet that handles requests to the bot.
+ */
 public class MainServlet : HttpServlet() {
     private val telegramUrl = "https://api.telegram.org/bot"
     private val isTokenHardcoded = false
@@ -19,16 +21,19 @@ public class MainServlet : HttpServlet() {
     private val helpMessage : String
     private val token : String // sometimes we use it separately from the url
     private val charset = "UTF-8"
-    private val isLogging = false
-    private val gson = Gson()
 
-    //contains pairs(ID, progrLang) of IDs of chats there bot was requested to highlight file and requested languages
-    //TODO: remove old requests
+    private val gson = Gson()
+    //private var updatesOffset = 0
+
+    // TODO: remove old requests
+    /**
+     * Pairs (ID, language) containing information about chats that have asked to highlight a file.
+     */
     private val requestsToHighlightFile = LinkedList<Pair<String, String>>()
 
     init {
         // loading properties here
-        // removed try-catch here, cuz if this fails, the bot can't work anyway
+        // no try-catch here, cuz if this fails, the bot can't work anyway
         val prop = Properties()
         val inputStream = MainServlet::class.java.
                 classLoader.getResourceAsStream("res.properties")
@@ -46,18 +51,29 @@ public class MainServlet : HttpServlet() {
         apiUrl = telegramUrl + token
     }
 
+    /**
+     * Handles GET requests to this server.
+     * Such requests are simply for testing server status
+     */
     public override fun doGet(req : HttpServletRequest, resp : HttpServletResponse) {
         resp.contentType = "text/plain"
         resp.writer.println("I am alive!")
     }
 
-    override fun doPost(req : HttpServletRequest, resp : HttpServletResponse) {
+    /**
+     * Handles POST requests to this servlet.
+     * Presumably requests are sent by Telegram and contain messages from users.
+     */
+    public override fun doPost(req : HttpServletRequest, resp : HttpServletResponse) {
         val update = parseClass(req, telegram.Update::class.java) as Update
         val msg = update.message
         if (msg != null)
             handleMessage(msg)
     }
 
+    /**
+     * Parses POST data of [req] into an object of type [clazz].
+     */
     private fun parseClass(req : HttpServletRequest, clazz : Class<out Any>) : Any {
         val rd = req.reader
         val sb = StringBuilder()
@@ -65,21 +81,25 @@ public class MainServlet : HttpServlet() {
         return gson.fromJson(sb.toString(), clazz)
     }
 
+    /**
+     * Sends [text] to a Telegram chat with id=[chatId].
+     */
     fun sendTextMessage(chatId : String, text : String) : Boolean {
-        val post = HTTPRequest(URL("$apiUrl/sendMessage"), HTTPMethod.POST)
-        val content = "chat_id=$chatId&text=$text"
-        post.payload = content.toByteArray(charset)
         try {
-            val telegramResponse = URLFetchServiceFactory.getURLFetchService().fetch(post)
-            return telegramResponse.responseCode == 200
+            val resp = HttpRequests.simpleRequest("$apiUrl/sendMessage", HTTPMethod.POST, "chat_id=$chatId&text=$text")
+            return resp.responseCode == 200
         }
         catch (e : Exception) {
-            e.printStackTrace()
+            if (e.message != null)
+                Logger.println(e.message!!)
             return false
         }
     }
 
-    // handles a message from Telegram user
+    /**
+     * Handles a message from Telegram user.
+     * Main bot functionality is here.
+     */
     fun handleMessage(message : Message) {
         val chatId : String = message.chat.id.toString()
         var success = false
@@ -94,8 +114,17 @@ public class MainServlet : HttpServlet() {
                 }
                 text.startsWith("/highlight ") -> {
                     val splitMessage = text.split(" ".toRegex(), 3)
-                    success = CodeHighlighter.manageCodeHighlightRequest(
-                            splitMessage[1], splitMessage[2], chatId, apiUrl)
+                    try {
+                        success = CodeHighlighter.manageCodeHighlightRequest(
+                                splitMessage[1], splitMessage[2], chatId, apiUrl)
+                    }
+                    catch (e : Exception) {
+                        sendTextMessage(
+                                chatId,
+                                "I couldn't proceed your request because of:\n${e.toString()}\nSorry for that."
+                        )
+                        success = false
+                    }
                 }
                 text.startsWith("/highlightFile ") -> {
                     val splitMessage = text.split(" ".toRegex(), 2)
@@ -141,11 +170,40 @@ public class MainServlet : HttpServlet() {
                 }
             }
         }
-        logprintln(success.toString())
+        Logger.println(success.toString())
     }
 
-    private fun logprintln(str : String) {
-        if (isLogging)
-            println(str)
-    }
+    /*public fun main(args : Array<String>) {
+        // main loop which obtains new user messages
+        while (true) {
+            // requesting new messges
+            val telegramResponse = HttpRequests.simpleRequest("$apiUrl/getupdates",
+                    HTTPMethod.GET,
+                    "offset=${Integer.toString(updatesOffset)}&timeout=60"
+            )
+            Logger.println(telegramResponse.toString())
+            val json = JSONObject(telegramResponse)
+            if (json.getBoolean("ok")) {
+                // successfully obtained messages; handling them one by one
+                val messageArray = json.getJSONArray("result")
+                val messageArrayLength = messageArray.length()
+                var counter = 0
+                while (counter < messageArrayLength) {
+                    val message = messageArray.getJSONObject(counter)
+                    pool.execute {
+                        try {
+                            handleMessage(message)
+                        }
+                        catch (e : Exception) {
+                            logprintln("Request handling failed because of ${e.toString()}")
+                        }
+                    }
+                    counter++
+                }
+                if (counter > 0) {
+                    updatesOffset = messageArray.getJSONObject(counter - 1).getInt("update_id") + 1
+                }
+            }
+        }
+    }*/
 }
