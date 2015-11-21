@@ -60,7 +60,7 @@ public object CodeHighlighter {
 
     public fun manageCodeHighlightRequest(language : String, content : String, chatId : String, apiUrl : String) : Boolean {
         // creating and sending HTTP request to Pygments
-        val pygmentsPost = HTTPRequest(URL(PYGMENTS_URL), HTTPMethod.POST);
+        val pygmentsPost = HTTPRequest(URL(PYGMENTS_URL), HTTPMethod.POST)
         pygmentsPost.payload = "lang=$language&code=$content".toByteArray(charset)
         val pygmentsResponse = URLFetchServiceFactory.getURLFetchService().fetch(pygmentsPost)
         if (pygmentsResponse.responseCode != 200) {
@@ -73,7 +73,7 @@ public object CodeHighlighter {
         imageGenerator.loadHtml(coloredCode)
         // converting buffered image to byte array for sending
         val baos = ByteArrayOutputStream()
-        ImageIO.write(imageGenerator.bufferedImage, "png", baos);
+        ImageIO.write(imageGenerator.bufferedImage, "png", baos)
         val imageByteArray = baos.toByteArray()
         // creating Telegram POST request
         val telegramPost = HTTPRequest(URL(apiUrl + "/sendPhoto"), HTTPMethod.POST)
