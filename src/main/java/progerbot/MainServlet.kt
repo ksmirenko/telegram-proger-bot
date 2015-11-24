@@ -54,6 +54,7 @@ public class MainServlet : HttpServlet() {
                 classLoader.getResourceAsStream("res.properties")
         prop.load(inputStream)
         helpMessage = prop.getProperty("json.helpMessage")
+
         if (!isTokenHardcoded) {
             // loading token from locally stored file
             val inputStreamToken = MainServlet::class.java.classLoader.getResourceAsStream("auth.properties")
@@ -130,6 +131,23 @@ public class MainServlet : HttpServlet() {
                     updatesOffset = messageArray.getJSONObject(counter - 1).getInt("update_id") + 1
                 }
             }
+        }
+    }
+
+    // TODO: send special symbols, such as '&'
+    /**
+     * Sends [text] to a Telegram chat with id=[chatId].
+     */
+    public fun sendTextMessage(chatId : String, text : String) : Boolean {
+        try {
+            Logger.println("Sending message: {$text}")
+            val resp = HttpRequests.simpleRequest("$telegramApiUrl/sendMessage", HTTPMethod.POST, "chat_id=$chatId&text=$text")
+            return resp.responseCode == 200
+        }
+        catch (e : Exception) {
+            if (e.message != null)
+                Logger.println(e.message!!)
+            return false
         }
     }
 
@@ -226,22 +244,5 @@ public class MainServlet : HttpServlet() {
         val sb = StringBuilder()
         rd.forEachLine { sb.append(it); sb.append("\n") }
         return gson.fromJson(sb.toString(), clazz)
-    }
-
-    // TODO: send special symbols, such as '&'
-    /**
-     * Sends [text] to a Telegram chat with id=[chatId].
-     */
-    private fun sendTextMessage(chatId : String, text : String) : Boolean {
-        try {
-            Logger.println("Sending message: {$text}")
-            val resp = HttpRequests.simpleRequest("$telegramApiUrl/sendMessage", HTTPMethod.POST, "chat_id=$chatId&text=$text")
-            return resp.responseCode == 200
-        }
-        catch (e : Exception) {
-            if (e.message != null)
-                Logger.println(e.message!!)
-            return false
-        }
     }
 }

@@ -14,7 +14,7 @@ import org.apache.commons.lang3.StringEscapeUtils
  */
 public object Logger {
     private val lock = ReentrantLock()
-    private val isLogging = false
+    private val isLogging = true
 
     /**
      * Prints [str] to the log (standard error stream).

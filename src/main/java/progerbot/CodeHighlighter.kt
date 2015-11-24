@@ -1,9 +1,7 @@
 package progerbot
 
-import com.google.appengine.api.urlfetch.HTTPHeader
-import com.google.appengine.api.urlfetch.HTTPMethod
-import com.google.appengine.api.urlfetch.HTTPRequest
-import com.google.appengine.api.urlfetch.URLFetchServiceFactory
+import com.google.appengine.api.urlfetch.*
+import com.google.gson.JsonParser
 import gui.ava.html.image.generator.HtmlImageGenerator
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
@@ -65,7 +63,15 @@ public object CodeHighlighter {
             return false
         }
         // obtaining image with colored code
-        val imageByteArray = imageObtainer.getImageFromHtml(addStyles(pygmentsResponse.content.toString()))
+        val imageByteArray = imageObtainer.getImageFromHtml(
+                addStyles(pygmentsResponse.content.toString()),
+                apiUrl,
+                chatId
+        )
+        // FIXME: epic workaround
+        if (imageByteArray.size == 1) {
+            return true
+        }
         // creating Telegram POST request
         val telegramPost = HTTPRequest(URL(apiUrl + "/sendPhoto"), HTTPMethod.POST)
         val entity = (MultipartEntityBuilder.create()
@@ -87,11 +93,11 @@ public object CodeHighlighter {
     }
 
     private abstract class ImageObtainingStrategy() {
-        public abstract fun getImageFromHtml(htmlContent : String) : ByteArray
+        public abstract fun getImageFromHtml(htmlContent : String, telegramApiUrl : String, chatId : String) : ByteArray
     }
 
     private class LibraryImageObtainingStrategy() : ImageObtainingStrategy() {
-        override fun getImageFromHtml(htmlContent : String) : ByteArray {
+        override fun getImageFromHtml(htmlContent : String, telegramApiUrl : String, chatId : String) : ByteArray {
             val imageGenerator = HtmlImageGenerator()
             imageGenerator.loadHtml(htmlContent)
             val baos = ByteArrayOutputStream()
@@ -113,8 +119,31 @@ public object CodeHighlighter {
             apiKey = prop.getProperty("json.pagetoimagesApiKey")
         }
 
-        override fun getImageFromHtml(htmlContent : String) : ByteArray {
-            // TODO: implement
+        override fun getImageFromHtml(htmlContent : String, telegramApiUrl : String, chatId : String) : ByteArray {
+            val response : HTTPResponse = HttpRequests.simpleRequest(
+                    API_URL,
+                    HTTPMethod.POST,
+                    "p2i_html=$htmlContent&p2i_key=$apiKey&p2i_imageformat=jpg&p2i_fullpage=0"
+            )
+            val parser = JsonParser()
+            val jsonObject = parser.parse(response.content.toString()).asJsonObject
+            when (jsonObject.get("status").asString) {
+                "processing" -> {
+                    HttpRequests.simpleRequest(
+                            "$telegramApiUrl/sendMessage",
+                            HTTPMethod.POST,
+                            "chat_id=$chatId&text=Your photo is being prepared now. But I won't give it to you, haha."
+                    )
+                }
+                "finished" -> {
+                    HttpRequests.simpleRequest(
+                            "$telegramApiUrl/sendMessage",
+                            HTTPMethod.POST,
+                            "chat_id=$chatId&text=Here you are:\n${jsonObject.get("image_url").asString}"
+                    )
+                }
+
+            }
             return ByteArray(1)
         }
     }
