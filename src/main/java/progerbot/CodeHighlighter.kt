@@ -1,23 +1,16 @@
 package progerbot
 
 import com.google.appengine.api.urlfetch.HTTPHeader
-import gui.ava.html.image.generator.HtmlImageGenerator
-/*import org.apache.http.NameValuePair
-import org.apache.http.client.ClientProtocolException
-import org.apache.http.client.entity.UrlEncodedFormEntity
-import org.apache.http.client.methods.HttpPost
-import org.apache.http.entity.ContentType
-import org.apache.http.entity.mime.MultipartEntityBuilder
-import org.apache.http.impl.client.HttpClientBuilder
-import org.apache.http.message.BasicNameValuePair*/
 import com.google.appengine.api.urlfetch.HTTPMethod
 import com.google.appengine.api.urlfetch.HTTPRequest
 import com.google.appengine.api.urlfetch.URLFetchServiceFactory
-import org.apache.http.client.ClientProtocolException
+import gui.ava.html.image.generator.HtmlImageGenerator
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
-import org.apache.http.impl.client.HttpClientBuilder
-import java.io.*
+import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.StringReader
 import java.net.URL
 import java.util.*
 import javax.imageio.ImageIO
@@ -25,7 +18,7 @@ import javax.imageio.ImageIO
 
 public object CodeHighlighter {
     private val PYGMENTS_URL = "http://pygments.simplabs.com/"
-    private val charset = "UTF-8"
+    private val CHARSET = "UTF-8"
     /**
      * HTML prefix containing styles for highlighted text.
      */
@@ -34,6 +27,10 @@ public object CodeHighlighter {
      * HTML suffix of a highlighted text.
      */
     private val suffix : String
+    /**
+     * A strategy for converting HTML to images.
+     */
+    private val imageObtainer : ImageObtainingStrategy = LibraryImageObtainingStrategy()
 
     init {
         try {
@@ -61,20 +58,14 @@ public object CodeHighlighter {
     public fun manageCodeHighlightRequest(language : String, content : String, chatId : String, apiUrl : String) : Boolean {
         // creating and sending HTTP request to Pygments
         val pygmentsPost = HTTPRequest(URL(PYGMENTS_URL), HTTPMethod.POST)
-        pygmentsPost.payload = "lang=$language&code=$content".toByteArray(charset)
+        pygmentsPost.payload = "lang=$language&code=$content".toByteArray(CHARSET)
         val pygmentsResponse = URLFetchServiceFactory.getURLFetchService().fetch(pygmentsPost)
         if (pygmentsResponse.responseCode != 200) {
             Logger.println("[ERROR] Could not pygmentize code for chat $chatId")
             return false
         }
-        // generating and obtaining image out of colored code
-        val imageGenerator = HtmlImageGenerator()
-        val coloredCode = addStyles(pygmentsResponse.content.toString())
-        imageGenerator.loadHtml(coloredCode)
-        // converting buffered image to byte array for sending
-        val baos = ByteArrayOutputStream()
-        ImageIO.write(imageGenerator.bufferedImage, "png", baos)
-        val imageByteArray = baos.toByteArray()
+        // obtaining image with colored code
+        val imageByteArray = imageObtainer.getImageFromHtml(addStyles(pygmentsResponse.content.toString()))
         // creating Telegram POST request
         val telegramPost = HTTPRequest(URL(apiUrl + "/sendPhoto"), HTTPMethod.POST)
         val entity = (MultipartEntityBuilder.create()
@@ -95,25 +86,36 @@ public object CodeHighlighter {
         return telegramResponse.responseCode == 200
     }
 
-    /*private fun addMultipartBodyToRequest(entity : MultipartEntity, req : HTTPRequest) {
+    private abstract class ImageObtainingStrategy() {
+        public abstract fun getImageFromHtml(htmlContent : String) : ByteArray
+    }
 
-        /*
-         * turn Entity to byte[] using ByteArrayOutputStream
-         */
-        val bos = ByteArrayOutputStream()
-        entity.writeTo(bos)
-        val body = bos.toByteArray()
+    private class LibraryImageObtainingStrategy() : ImageObtainingStrategy() {
+        override fun getImageFromHtml(htmlContent : String) : ByteArray {
+            val imageGenerator = HtmlImageGenerator()
+            imageGenerator.loadHtml(htmlContent)
+            val baos = ByteArrayOutputStream()
+            ImageIO.write(imageGenerator.bufferedImage, "png", baos)
+            return baos.toByteArray()
+        }
+    }
 
-        /*
-         * extract multipart boundary (body starts with --boundary\r\n)
-         */
-        var boundary = BufferedReader(StringReader(String(body))).readLine()
-        boundary = boundary.substring(2, boundary.length)
+    private class ApiImageObtainingStrategy() : ImageObtainingStrategy() {
+        private val API_URL = "http://api.page2images.com/html2image"
+        private val apiKey : String
 
-        /*
-         * add multipart header and body
-         */
-        req.addHeader(HTTPHeader("Content-type", "multipart/form-data; boundary=" + boundary))
-        req.setPayload(body)
-    }*/
+        init {
+            // loading properties
+            val prop = Properties()
+            val inputStream = progerbot.MainServlet::class.java.
+                    classLoader.getResourceAsStream("auth.properties")
+            prop.load(inputStream)
+            apiKey = prop.getProperty("json.pagetoimagesApiKey")
+        }
+
+        override fun getImageFromHtml(htmlContent : String) : ByteArray {
+            // TODO: implement
+            return ByteArray(1)
+        }
+    }
 }

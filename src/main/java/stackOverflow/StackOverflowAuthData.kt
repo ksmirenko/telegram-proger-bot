@@ -23,15 +23,15 @@ public object StackOverflowAuthData {
         try {
             val prop = Properties()
             val inputStream = progerbot.MainServlet::class.java.
-                    classLoader.getResourceAsStream("stackOverflowAuth.properties")
+                    classLoader.getResourceAsStream("auth.properties")
             prop.load(inputStream)
-            clientID = prop.getProperty("json.clientID")
-            clientSecret = prop.getProperty("json.clientSecret")
-            key = prop.getProperty("json.key")
-            redirectURI = prop.getProperty("json.redirectURI")
+            clientID = prop.getProperty("json.stackOverflowClientID")
+            clientSecret = prop.getProperty("json.stackOverflowClientSecret")
+            key = prop.getProperty("json.stackOverflowKey")
+            redirectURI = prop.getProperty("json.stackOverflowRedirectURI")
             authUrlWithoutState = "https://stackexchange.com/oauth?client_id=$clientID%26redirect_uri=$redirectURI"
         } catch (e: IOException) {
-            progerbot.Logger.println("Cannot load stackOverflowAuth.properties")
+            progerbot.Logger.println("Cannot load auth.properties")
             clientID = ""
             clientSecret = ""
             key = ""
