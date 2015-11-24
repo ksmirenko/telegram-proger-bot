@@ -7,6 +7,7 @@ import com.google.appengine.api.urlfetch.URLFetchServiceFactory
 import java.net.URL
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import org.apache.commons.lang3.StringEscapeUtils
 
 /**
  * Thread-safe log service.
@@ -16,12 +17,13 @@ public object Logger {
     private val isLogging = false
 
     /**
-     * Prints [str] to the log.
+     * Prints [str] to the log (standard error stream).
+     * Messages written to err are shown as warnings in GAE logs.
      */
     public fun println(str : String) {
         lock.withLock {
             if (isLogging)
-                kotlin.io.println(str)
+                System.err.println(str)
         }
     }
 }
