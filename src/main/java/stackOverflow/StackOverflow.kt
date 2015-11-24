@@ -3,12 +3,16 @@ package stackOverflow
 import com.google.appengine.api.urlfetch.HTTPMethod
 import com.google.appengine.api.urlfetch.HTTPRequest
 import com.google.appengine.api.urlfetch.URLFetchServiceFactory
+import org.json.simple.JSONArray
+import org.json.simple.JSONObject
+import org.json.simple.parser.JSONParser
+import progerbot.HttpRequests
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.URL
 import java.util.*
 
-public object StackOverflowAuthData {
+public object StackOverflow {
     public val clientID : String
     public val clientSecret : String
     public val key : String
@@ -58,5 +62,24 @@ public object StackOverflowAuthData {
             progerbot.Logger.println("[StackOverflowError] Could not confirm code for chat $chatId")
             return false
         }
+    }
+
+    public fun search(title : String) : String {
+        val url = "https://api.stackexchange.com/2.2/search?" +
+                "order=desc&sort=activity&intitle=$title&site=stackoverflow.com&key=$key"
+        val res = HttpRequests.simpleRequest(url, HTTPMethod.GET, "")
+        if (res.responseCode == 200) {
+            val jsonObj = JSONParser().parse(res.content.toString(charset)) as JSONObject
+            if (jsonObj.get("has_more").toString() == "false")
+                return "No matches"
+            var jsonArr = JSONParser().parse((jsonObj).get("items").toString()) as JSONArray
+            var searchRes = StringBuilder()
+            for (i in 0..jsonArr.size - 1)
+                searchRes.append((jsonArr[i] as JSONObject).get("title").toString() + "\n" +
+                        (jsonArr[i] as JSONObject).get("link").toString() + "\n\n")
+            return searchRes.toString()
+        }
+        else
+            return "Cannot perform search"
     }
 }
