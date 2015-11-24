@@ -34,7 +34,7 @@ public class HttpRequests {
                 url : String, method : HTTPMethod, content : String, charset : String = "UTF-8"
         ) : HTTPResponse {
             val post = HTTPRequest(URL(url), method)
-            post.payload = content.toByteArray(charset)
+            post.payload = StringEscapeUtils.escapeHtml4(content).toByteArray(charset)
             return URLFetchServiceFactory.getURLFetchService().fetch(post)
         }
     }
