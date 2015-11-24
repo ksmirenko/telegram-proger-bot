@@ -76,7 +76,7 @@ public class MainServlet : HttpServlet() {
         try {
             val chatId = req.getParameter("state")
             val code = req.getParameter("code")
-            val text = if (stackOverflow.StackOverflowAuthData.tryConfirmCode(chatId, code))
+            val text = if (stackOverflow.StackOverflow.tryConfirmCode(chatId, code))
                 "Your StackOverflow account was connected successfully!"
             else "Connection to StackOverflow failed"
             sendTextMessage(chatId, text)
@@ -176,7 +176,11 @@ public class MainServlet : HttpServlet() {
                 }
                 text.startsWith("/stackoverflowconnect") -> {
                     success = sendTextMessage(chatId, "Open this link to authorize the bot: " +
-                            stackOverflow.StackOverflowAuthData.getAuthUrl(chatId))
+                            stackOverflow.StackOverflow.getAuthUrl(chatId))
+                }
+                text.startsWith("/stackoverflowsearch ") -> {
+                    val splitMessage = text.split(" ".toRegex(), 2)
+                    success = sendTextMessage(chatId, stackOverflow.StackOverflow.search(splitMessage[1]))
                 }
                 else -> {
                     success = sendTextMessage(chatId, "NO U $text")
