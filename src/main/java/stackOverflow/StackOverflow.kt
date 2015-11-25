@@ -64,6 +64,13 @@ public object StackOverflow {
         }
     }
 
+    public fun logOut(chatId : String) : Boolean {
+        val containsKey = authTokens.containsKey(chatId)
+        if (containsKey)
+            authTokens.remove(chatId)
+        return containsKey
+    }
+
     public fun search(title : String) : String {
         val url = "https://api.stackexchange.com/2.2/search?" +
                 "order=desc&sort=activity&intitle=$title&site=stackoverflow.com&key=$key"

@@ -196,6 +196,12 @@ public class MainServlet : HttpServlet() {
                     success = sendTextMessage(chatId, "Open this link to authorize the bot: " +
                             stackOverflow.StackOverflow.getAuthUrl(chatId))
                 }
+                text.startsWith("/stackoverflowlogout") -> {
+                    val text =
+                            if (stackOverflow.StackOverflow.logOut(chatId)) "Log out performed!"
+                            else "Yor are not authorized!"
+                    success = sendTextMessage(chatId, text)
+                }
                 text.startsWith("/stackoverflowsearch ") -> {
                     val splitMessage = text.split(" ".toRegex(), 2)
                     success = sendTextMessage(chatId, stackOverflow.StackOverflow.search(splitMessage[1]))
