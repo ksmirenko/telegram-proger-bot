@@ -8,6 +8,7 @@ import org.json.JSONObject
 import telegram.Message
 import telegram.Update
 import java.net.URL
+import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.Executors
 import javax.servlet.http.HttpServlet
@@ -134,14 +135,16 @@ public class MainServlet : HttpServlet() {
         }
     }
 
-    // TODO: send special symbols, such as '&'
     /**
      * Sends [text] to a Telegram chat with id=[chatId].
      */
     public fun sendTextMessage(chatId : String, text : String) : Boolean {
         try {
             Logger.println("Sending message: {$text}")
-            val resp = HttpRequests.simpleRequest("$telegramApiUrl/sendMessage", HTTPMethod.POST, "chat_id=$chatId&text=$text")
+            val resp = HttpRequests.simpleRequest(
+                    "$telegramApiUrl/sendMessage",
+                    HTTPMethod.POST,
+                    "chat_id=$chatId&text=${URLEncoder.encode(text, CHARSET)}")
             return resp.responseCode == 200
         }
         catch (e : Exception) {
