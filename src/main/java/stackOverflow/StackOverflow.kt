@@ -33,7 +33,7 @@ public object StackOverflow {
             clientSecret = prop.getProperty("json.stackOverflowClientSecret")
             key = prop.getProperty("json.stackOverflowKey")
             redirectURI = prop.getProperty("json.stackOverflowRedirectURI")
-            authUrlWithoutState = "https://stackexchange.com/oauth?client_id=$clientID%26redirect_uri=$redirectURI"
+            authUrlWithoutState = "https://stackexchange.com/oauth?client_id=$clientID&redirect_uri=$redirectURI"
         } catch (e: IOException) {
             progerbot.Logger.println("Cannot load auth.properties")
             clientID = ""
