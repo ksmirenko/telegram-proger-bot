@@ -206,6 +206,9 @@ public class MainServlet : HttpServlet() {
                     val splitMessage = text.split(" ".toRegex(), 2)
                     success = sendTextMessage(chatId, stackOverflow.StackOverflow.search(splitMessage[1]))
                 }
+                text.startsWith("/stackoverflowsgetnotifications") -> {
+                    success = sendTextMessage(chatId, stackOverflow.StackOverflow.getUnreadNotifications(chatId))
+                }
                 else -> {
                     success = sendTextMessage(chatId, "NO U $text")
                 }
