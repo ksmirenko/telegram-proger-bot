@@ -123,7 +123,7 @@ public class MainServlet : HttpServlet() {
                             handleMessage(gson.fromJson(messageJson.toString(), telegram.Message::class.java))
                         }
                         catch (e : Exception) {
-                            Logger.println("Request handling failed because of ${e.toString()}")
+                            e.printStackTrace(System.err)
                         }
                     }
                     counter++
@@ -177,6 +177,7 @@ public class MainServlet : HttpServlet() {
                                 splitMessage[1], splitMessage[2], chatId, telegramApiUrl)
                     }
                     catch (e : Exception) {
+                        e.printStackTrace(System.err)
                         sendTextMessage(
                                 chatId,
                                 "I couldn't proceed your request because of:\n${e.toString()}\nSorry for that."

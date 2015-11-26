@@ -28,7 +28,7 @@ public object CodeHighlighter {
     /**
      * A strategy for converting HTML to images.
      */
-    private val imageObtainer : ImageObtainingStrategy = LibraryImageObtainingStrategy()
+    private val imageObtainer : ImageObtainingStrategy = ApiImageObtainingStrategy()
 
     init {
         try {
