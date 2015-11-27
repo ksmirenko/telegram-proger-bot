@@ -126,13 +126,13 @@ public object CodeHighlighter {
                     "p2i_html=$htmlContent&p2i_key=$apiKey&p2i_imageformat=jpg&p2i_fullpage=0"
             )
             val parser = JsonParser()
-            val jsonObject = parser.parse(response.content.toString()).asJsonObject
+            val jsonObject = parser.parse(response.content.toString(CHARSET)).asJsonObject
             when (jsonObject.get("status").asString) {
                 "processing" -> {
                     HttpRequests.simpleRequest(
                             "$telegramApiUrl/sendMessage",
                             HTTPMethod.POST,
-                            "chat_id=$chatId&text=Your photo is being prepared now. But I won't give it to you, haha."
+                            "chat_id=$chatId&text=Your code image is being prepared now. But I won't give it to you, haha."
                     )
                 }
                 "finished" -> {
