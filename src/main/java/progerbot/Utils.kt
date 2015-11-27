@@ -7,7 +7,6 @@ import com.google.appengine.api.urlfetch.URLFetchServiceFactory
 import java.net.URL
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import org.apache.commons.lang3.StringEscapeUtils
 
 /**
  * Thread-safe log service.
@@ -24,6 +23,16 @@ public object Logger {
         lock.withLock {
             if (isLogging)
                 System.err.println(str)
+        }
+    }
+
+    /**
+     * Prints the stack trace of [exc] to the log (standard error stream).
+     */
+    public fun println(exc : Exception) {
+        lock.withLock {
+            if (isLogging)
+                exc.printStackTrace(System.err)
         }
     }
 }
