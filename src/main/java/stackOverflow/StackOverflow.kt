@@ -33,7 +33,8 @@ public object StackOverflow {
             clientSecret = prop.getProperty("json.stackOverflowClientSecret")
             key = prop.getProperty("json.stackOverflowKey")
             redirectURI = prop.getProperty("json.stackOverflowRedirectURI")
-            authUrlWithoutState = "https://stackexchange.com/oauth?client_id=$clientID&redirect_uri=$redirectURI"
+            authUrlWithoutState = "https://stackexchange.com/oauth?client_id=$clientID&" +
+                    "redirect_uri=$redirectURI&scope=read_inbox"
         } catch (e: IOException) {
             progerbot.Logger.println("Cannot load auth.properties")
             clientID = ""
@@ -44,7 +45,7 @@ public object StackOverflow {
         }
     }
 
-    public fun getAuthUrl(chatId: String): String = "$authUrlWithoutState%26state=$chatId%26scope=read_inbox"
+    public fun getAuthUrl(chatId: String): String = "$authUrlWithoutState&state=$chatId"
 
     public fun tryConfirmCode(chatId: String, code: String): Boolean {
         val url = "https://stackexchange.com/oauth/access_token"
@@ -52,15 +53,15 @@ public object StackOverflow {
         stackOverflowPost.payload = ("client_id=$clientID&client_secret=$clientSecret&" +
                 "code=$code&redirect_uri=$redirectURI").toByteArray(charset)
         val stackOverflowResponse = URLFetchServiceFactory.getURLFetchService().fetch(stackOverflowPost)
-        if (stackOverflowResponse.responseCode == 200) {
+        val success = (stackOverflowResponse.responseCode == 200)
+        if (success) {
             var postResponseProp = Properties()
             postResponseProp.load(ByteArrayInputStream(stackOverflowResponse.content))
             authTokens.put(chatId, postResponseProp.getProperty("access_token"))
-            return true
         } else {
             progerbot.Logger.println("[StackOverflowError] Could not confirm code for chat $chatId")
-            return false
         }
+        return success
     }
 
     public fun logOut(chatId: String): Boolean {
@@ -81,35 +82,31 @@ public object StackOverflow {
             return "No matches"
         var jsonArr = JSONParser().parse((jsonObj).get("items").toString()) as JSONArray
         var searchRes = StringBuilder()
-        for (i in 0..jsonArr.size - 1)
+        for (i in 0..Math.min(jsonArr.size - 1, 5))
             searchRes.append((jsonArr[i] as JSONObject).get("title").toString() + "\n" +
                     (jsonArr[i] as JSONObject).get("link").toString() + "\n\n")
         return searchRes.toString()
-
     }
 
     public fun getUnreadNotifications(chatId: String): String {
-        val noUnreadNotificationsMessage = "No unread notifications"
-        val authTokenOrNull = authTokens.get(chatId)
-        if (authTokenOrNull == null)
+        if (!authTokens.containsKey(chatId))
             return "Yor are not authorized!"
-        val url = "https://api.stackexchange.com/2.2/notifications/unread?access_token=$authTokenOrNull&key=$key"
+        val authToken = authTokens.get(chatId)
+        val url = "https://api.stackexchange.com/2.2/inbox/unread?access_token=$authToken&key=$key&filter=withbody"
         val res = HttpRequests.simpleRequest(url, HTTPMethod.GET, "")
         if (res.responseCode != 200)
-            return "Cannon get notifications"
+            return "Cannot get notifications"
         val jsonObj = JSONParser().parse(res.content.toString(charset)) as JSONObject
-        if (jsonObj.get("has_more").toString() == "false")
-            return noUnreadNotificationsMessage
         var jsonArr = JSONParser().parse((jsonObj).get("items").toString()) as JSONArray
         var searchRes = StringBuilder()
-        for (i in 0..jsonArr.size - 1) {
-            val message = jsonArr[i] as JSONObject
-            if (message.get("is_unread") == "true")
-                searchRes.append(message.get("body")).toString() + "\n\n"
+        jsonArr.forEach {
+            val message = it as JSONObject
+            if (message.get("is_unread").toString() == "true")
+                searchRes.append(message.get("body").toString() + "\n" + message.get("link").toString() + "\n\n")
         }
         val unreadMessages = searchRes.toString()
         if (unreadMessages.isEmpty())
-            return noUnreadNotificationsMessage
+            return "No unread notifications"
         return unreadMessages
     }
 }
