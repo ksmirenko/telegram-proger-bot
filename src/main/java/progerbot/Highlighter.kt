@@ -7,6 +7,7 @@ import gui.ava.html.image.generator.HtmlImageGenerator
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.URL
+import java.net.URLDecoder
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
@@ -114,7 +115,7 @@ public object Highlighter {
         val file = TelegramApi.getFile(fileId) ?: return false
         val path = file.file_path ?: return false
         val sourceCode = TelegramApi.downloadTextFile(path)
-        val language = pendingDocumentsUsers.get(chatId) ?: return false
+        val language = pendingDocumentsUsers[chatId] ?: return false
         return highlightCodeText(language, sourceCode, chatId)
     }
 
@@ -124,7 +125,7 @@ public object Highlighter {
     public fun handlePreparedImage(chatId : String, imageUrl : String) {
         if (pendingP2IRequests.contains(chatId)) {
             pendingP2IRequests.remove(chatId)
-            TelegramApi.sendText(chatId, "Here you are:\n$imageUrl")
+            TelegramApi.sendText(chatId, "Here you are:\n${URLDecoder.decode(imageUrl, CHARSET)}")
         }
     }
 
@@ -139,7 +140,7 @@ public object Highlighter {
         }
         // obtaining image with colored code
         imageObtainer.getImageFromHtml(
-                addStyles(pygmentsResponse.content.toString()),
+                addStyles(pygmentsResponse.content.toString(CHARSET)),
                 chatId
         )
         return true
@@ -191,7 +192,7 @@ public object Highlighter {
                         P2I_URL,
                         HTTPMethod.POST,
                         "p2i_html=$htmlContent&p2i_key=$apiKey&p2i_imageformat=jpg" +
-                                "&p2i_fullpage=0&p2i_callback=$P2I_CALLBACK_URL?token=$chatId"
+                                "&p2i_fullpage=0&p2i_callback=$P2I_CALLBACK_URL?p2i_token=$chatId"
                 )
                 TelegramApi.sendText(
                         chatId,

@@ -1,14 +1,11 @@
 package progerbot
 
-import com.google.appengine.api.urlfetch.HTTPMethod
 import com.google.appengine.api.urlfetch.HTTPResponse
-import com.google.appengine.api.urlfetch.URLFetchServiceFactory
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import org.json.JSONObject
 import telegram.Message
 import telegram.Update
-import java.net.URL
-import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.Executors
 import javax.servlet.http.HttpServlet
@@ -29,12 +26,10 @@ public class MainServlet : HttpServlet() {
      */
     private val gson = Gson()
     private var updatesOffset = 0
-
     /**
      * main thread pool for handling user messages in active mode
      */
     private val pool = Executors.newFixedThreadPool(8);
-
 
 
     init {
@@ -52,12 +47,6 @@ public class MainServlet : HttpServlet() {
      * Presumably requests are sent by user when he is redirected from StackOverflow.
      */
     public override fun doGet(req : HttpServletRequest, resp : HttpServletResponse) {
-        // if there is a p2i_token, the request is a callback from Page2Image
-        val p2iToken = req.getParameter("p2i_token")
-        if (p2iToken != null) {
-            Highlighter.handlePreparedImage(p2iToken, req.getParameter("image_url"))
-        }
-        // else, the request is an authorization response from StackOverflow
         try {
             val chatId = req.getParameter("state")
             val code = req.getParameter("code")
@@ -76,6 +65,17 @@ public class MainServlet : HttpServlet() {
      * Presumably requests are sent by Telegram and contain messages from users.
      */
     public override fun doPost(req : HttpServletRequest, resp : HttpServletResponse) {
+        // if there is a p2i_token, the request is a callback from Page2Image
+        val p2iToken = req.getParameter("p2i_token")
+        if (p2iToken != null) {
+            resp.contentType = "text/html"
+            resp.setStatus(200)
+            val result = req.getParameter("result")
+            Logger.println(result)
+            val jsonObject = JsonParser().parse(result).asJsonObject
+            Highlighter.handlePreparedImage(p2iToken, jsonObject.get("image_url").asString)
+        }
+        // else, the request is an authorization response from StackOverflow
         val update = parseClass(req, telegram.Update::class.java) as Update
         val msg = update.message
         if (msg != null)
@@ -115,8 +115,6 @@ public class MainServlet : HttpServlet() {
         }
     }
 
-
-
     /**
      * Handles a message from Telegram user.
      * Main bot functionality is here.
@@ -133,35 +131,9 @@ public class MainServlet : HttpServlet() {
                 text.startsWith("/start") -> {
                     success = TelegramApi.sendText(chatId, "I'm Intelligent Proger Bot. Let's start!")
                 }
-                text.startsWith("/highlight ") -> {
+                text.startsWith("/highlight") -> {
                     success = Highlighter.handleRequest(chatId, text)
                 }
-                /*text.startsWith("/highlight ") -> {
-                    val splitMessage = text.split(" ".toRegex(), 3)
-                    try {
-                        success = CodeHighlighter.handleTextRequest(
-                                splitMessage[1], splitMessage[2], chatId, telegramApiUrl)
-                    }
-                    catch (e : Exception) {
-                        e.printStackTrace(System.err)
-                        sendTextMessage(
-                                chatId,
-                                "I couldn't proceed your request because of:\n${e.toString()}\nSorry for that."
-                        )
-                        success = false
-                    }
-                }
-                text.startsWith("/highlightfile ") -> {
-                    val splitMessage = text.split(" ".toRegex(), 2)
-                    val requestsIterator = requestsToHighlightFile.iterator()
-                    // TODO: optimize it using Set
-                    while (requestsIterator.hasNext())
-                        if (requestsIterator.next().first == chatId) {
-                            requestsIterator.remove()
-                            break
-                        }
-                    requestsToHighlightFile.addFirst(Pair(chatId, splitMessage[1]))
-                }*/
                 text.startsWith("/stackoverflowconnect") -> {
                     success = TelegramApi.sendText(chatId, "Open this link to authorize the bot: " +
                             stackOverflow.StackOverflow.getAuthUrl(chatId))
@@ -187,31 +159,6 @@ public class MainServlet : HttpServlet() {
         val document = message.document
         if (document != null) {
             Highlighter.handleDocument(chatId, document.file_id)
-            /*var language = ""
-            var fileRequestedToHighlight = false
-            val requestsIterator = requestsToHighlightFile.iterator()
-            // TODO: optimize it using a Set
-            while (requestsIterator.hasNext()) {
-                val pair = requestsIterator.next()
-                if (pair.first == chatId) {
-                    fileRequestedToHighlight = true
-                    language = pair.second
-                    requestsIterator.remove()
-                    break
-                }
-            }
-            if (fileRequestedToHighlight) {
-                val codeRequestResponse = URLFetchServiceFactory.getURLFetchService().fetch(
-                        URL("$telegramApiUrl/getFile?file_id=${document.file_id}"))
-                if (codeRequestResponse.responseCode == 200) {
-                    val responseContent = codeRequestResponse.content.toString(CHARSET)
-                    val file = gson.fromJson(responseContent, telegram.File::class.java)
-                    val sourceCode = URLFetchServiceFactory.getURLFetchService().fetch(
-                            URL("https://api.telegram.org/file/bot$telegramToken/${file.file_path}")
-                    ).content.toString(CHARSET)
-                    success = CodeHighlighter.handleTextRequest(language, sourceCode, chatId, telegramApiUrl)
-                }
-            }*/
         }
         Logger.println(success.toString())
     }
