@@ -10,6 +10,7 @@ import progerbot.HttpRequests
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.URL
+import java.net.URLEncoder
 import java.util.*
 
 public object StackOverflow {
@@ -21,7 +22,7 @@ public object StackOverflow {
     private val authUrlWithoutState: String
     //stores pairs chatID/accessToken
     private val authTokens = Hashtable<String, String>()
-    private val charset = "UTF-8"
+    private val CHARSET = "UTF-8"
 
     init {
         try {
@@ -55,7 +56,7 @@ public object StackOverflow {
         val url = "https://stackexchange.com/oauth/access_token"
         val stackOverflowPost = HTTPRequest(URL(url), HTTPMethod.POST)
         stackOverflowPost.payload = ("client_id=$clientID&client_secret=$clientSecret&" +
-                "code=$code&redirect_uri=$redirectURI").toByteArray(charset)
+                "code=$code&redirect_uri=$redirectURI").toByteArray(CHARSET)
         val stackOverflowResponse = URLFetchServiceFactory.getURLFetchService().fetch(stackOverflowPost)
         val success = (stackOverflowResponse.responseCode == 200)
         if (success) {
@@ -77,16 +78,16 @@ public object StackOverflow {
     }
 
     //returns result of search on StackOverflow where parameter 'title' is a searching question
-    public fun search(title: String): String {
-        val url = "https://api.stackexchange.com/2.2/search?" +
-                "order=desc&sort=activity&intitle=$title&site=stackoverflow.com&key=$key"
+    public fun search(textToSearch: String): String {
+        val url = "https://api.stackexchange.com/2.2/search/advanced?order=desc&sort=activity&" +
+                "q=${URLEncoder.encode(textToSearch, CHARSET)}&site=stackoverflow.com&key=$key"
         val res = HttpRequests.simpleRequest(url, HTTPMethod.GET, "")
         if (res.responseCode != 200)
             return "Cannot perform search"
-        val jsonObj = JSONParser().parse(res.content.toString(charset)) as JSONObject
-        if (jsonObj.get("has_more").toString() == "false")
-            return "No matches"
+        val jsonObj = JSONParser().parse(res.content.toString(CHARSET)) as JSONObject
         var jsonArr = JSONParser().parse((jsonObj).get("items").toString()) as JSONArray
+        if (jsonArr.isEmpty())
+            return "No matches"
         var searchRes = StringBuilder()
         for (i in 0..Math.min(jsonArr.size - 1, 5))
             searchRes.append((jsonArr[i] as JSONObject).get("title").toString() + "\n" +
@@ -102,7 +103,7 @@ public object StackOverflow {
         val res = HttpRequests.simpleRequest(url, HTTPMethod.GET, "")
         if (res.responseCode != 200)
             return "Cannot get notifications"
-        val jsonObj = JSONParser().parse(res.content.toString(charset)) as JSONObject
+        val jsonObj = JSONParser().parse(res.content.toString(CHARSET)) as JSONObject
         var jsonArr = JSONParser().parse((jsonObj).get("items").toString()) as JSONArray
         //contains pairs of inner item types and item types to be shown to user
         val itemTypes = mapOf<String, String>(Pair("comment", "comment"), Pair("new_answer", "answer"),
