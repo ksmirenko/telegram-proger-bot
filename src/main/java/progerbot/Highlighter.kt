@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.URL
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
@@ -66,7 +67,7 @@ public object Highlighter {
     public fun handleRequest(chatId : String, text : String) : Boolean {
         val splitMessage = text.split(" ".toRegex(), 3)
         when (splitMessage[0]) {
-            "/highlight" -> {
+            "/code" -> {
                 try {
                     return highlightCodeText(splitMessage[1], splitMessage[2], chatId)
                 }
@@ -79,7 +80,7 @@ public object Highlighter {
                     return false
                 }
             }
-            "/highlightfile" -> {
+            "/code_file" -> {
                 if (splitMessage.size < 2) {
                     TelegramApi.sendText(chatId, "Error: you didn't name the language!")
                     return false
@@ -90,7 +91,7 @@ public object Highlighter {
                         "All right, now send me the file."
                 )
             }
-            "/highlightcancel" -> {
+            "/code_file_cancel" -> {
                 pendingDocumentsUsers.remove(chatId)
                 TelegramApi.sendText(
                         chatId,
@@ -138,6 +139,7 @@ public object Highlighter {
             Logger.println("Error: Could not pygmentize code for chat $chatId")
             return false
         }
+        Logger.println("Pygmentized and stylized code: [${addStyles(pygmentsResponse.content.toString(CHARSET))}]")
         // obtaining image with colored code
         imageObtainer.getImageFromHtml(
                 addStyles(pygmentsResponse.content.toString(CHARSET)),
@@ -174,6 +176,7 @@ public object Highlighter {
     private class ApiImageObtainingStrategy() : ImageObtainingStrategy() {
         private val P2I_URL = "http://api.page2images.com/html2image"
         private val P2I_CALLBACK_URL = "https://telegram-proger-bot.appspot.com/main"
+        private val P2I_SCREEN = "&p2i_screen=320x240"
         private val apiKey : String
 
         init {
@@ -185,19 +188,22 @@ public object Highlighter {
             apiKey = prop.getProperty("json.pagetoimagesApiKey")
         }
 
+        // FIXME: '+' characters (and maybe some other) are not shown
         override fun getImageFromHtml(htmlContent : String, chatId : String) : Boolean {
             try {
                 pendingP2IRequests.add(chatId)
-                HttpRequests.simpleRequest(
+                val p2iResponse = HttpRequests.simpleRequest(
                         P2I_URL,
                         HTTPMethod.POST,
-                        "p2i_html=$htmlContent&p2i_key=$apiKey&p2i_imageformat=jpg" +
-                                "&p2i_fullpage=0&p2i_callback=$P2I_CALLBACK_URL?p2i_token=$chatId"
+                        "p2i_html=${URLEncoder.encode(htmlContent, CHARSET)}&p2i_key=$apiKey&p2i_imageformat=jpg" +
+                                "&p2i_fullpage=0$P2I_SCREEN&p2i_callback=$P2I_CALLBACK_URL?p2i_token=$chatId"
                 )
-                TelegramApi.sendText(
-                        chatId,
-                        "Your code image is being prepared now."
-                )
+                if (p2iResponse.responseCode != 200) {
+                    TelegramApi.sendText(chatId, "Oops, something went wrong when I tried to generate the image!")
+                    return false
+                }
+                Logger.println("P2I response: [${p2iResponse.content.toString(CHARSET)}]")
+                TelegramApi.sendText(chatId, "Your code image is being prepared now.")
                 return true
             }
             catch (e : Exception) {

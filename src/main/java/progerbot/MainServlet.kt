@@ -16,7 +16,6 @@ import javax.servlet.http.HttpServletResponse
  * Main servlet that handles requests to the bot.
  */
 public class MainServlet : HttpServlet() {
-    private val CHARSET = "UTF-8"
     /**
      * Bot's help message.
      */
@@ -74,6 +73,7 @@ public class MainServlet : HttpServlet() {
             Logger.println(result)
             val jsonObject = JsonParser().parse(result).asJsonObject
             Highlighter.handlePreparedImage(p2iToken, jsonObject.get("image_url").asString)
+            return
         }
         // else, the request is an authorization response from StackOverflow
         val update = parseClass(req, telegram.Update::class.java) as Update
@@ -129,26 +129,26 @@ public class MainServlet : HttpServlet() {
                     success = TelegramApi.sendText(chatId, helpMessage)
                 }
                 text.startsWith("/start") -> {
-                    success = TelegramApi.sendText(chatId, "I'm Intelligent Proger Bot. Let's start!")
+                    success = TelegramApi.sendText(chatId, "Hi, I'm Proger Bot. Let's start!")
                 }
-                text.startsWith("/highlight") -> {
+                text.startsWith("/code") -> {
                     success = Highlighter.handleRequest(chatId, text)
                 }
-                text.startsWith("/stackoverflowconnect") -> {
+                text.startsWith("/so_connect") -> {
                     success = TelegramApi.sendText(chatId, "Open this link to authorize the bot: " +
                             stackOverflow.StackOverflow.getAuthUrl(chatId))
                 }
-                text.startsWith("/stackoverflowlogout") -> {
+                text.startsWith("/so_logout") -> {
                     val answer =
                             if (stackOverflow.StackOverflow.logOut(chatId)) "Log out performed!"
                             else "Yor are not authorized!"
                     success = TelegramApi.sendText(chatId, answer)
                 }
-                text.startsWith("/stackoverflowsearch ") -> {
+                text.startsWith("/so_search ") -> {
                     val splitMessage = text.split(" ".toRegex(), 2)
                     success = TelegramApi.sendText(chatId, stackOverflow.StackOverflow.search(splitMessage[1]))
                 }
-                text.startsWith("/stackoverflowsgetnotifications") -> {
+                text.startsWith("/so_inbox") -> {
                     success = TelegramApi.sendText(chatId, stackOverflow.StackOverflow.getUnreadInboxItems(chatId))
                 }
                 else -> {
@@ -158,9 +158,9 @@ public class MainServlet : HttpServlet() {
         }
         val document = message.document
         if (document != null) {
-            Highlighter.handleDocument(chatId, document.file_id)
+            success = Highlighter.handleDocument(chatId, document.file_id)
         }
-        Logger.println(success.toString())
+        Logger.println(if (success) "Request handled." else "Request not handled successfully!")
     }
 
     /**

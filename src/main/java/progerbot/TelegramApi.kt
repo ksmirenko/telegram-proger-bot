@@ -2,6 +2,7 @@ package progerbot
 
 import com.google.appengine.api.urlfetch.*
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import telegram.File
@@ -76,11 +77,11 @@ public object TelegramApi {
 
     public fun getFile(fileId : String) : File? {
         try {
-            val codeRequestResponse = URLFetchServiceFactory.getURLFetchService().fetch(
+            val codeRequestResponse : HTTPResponse = URLFetchServiceFactory.getURLFetchService().fetch(
                     URL("$telegramApiUrl/getFile?file_id=$fileId"))
             if (codeRequestResponse.responseCode == 200) {
-                val responseContent = codeRequestResponse.content.toString(CHARSET)
-                val file = Gson().fromJson(responseContent, telegram.File::class.java)
+                val jsonObject = JsonParser().parse(codeRequestResponse.content.toString(CHARSET)).asJsonObject
+                val file = Gson().fromJson(jsonObject.get("result"), telegram.File::class.java)
                 return file
             }
             else return null
