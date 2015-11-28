@@ -37,14 +37,12 @@ public object Logger {
     }
 }
 
-public class HttpRequests {
-    companion object {
-        public fun simpleRequest(
-                url : String, method : HTTPMethod, content : String, charset : String = "UTF-8"
-        ) : HTTPResponse {
-            val post = HTTPRequest(URL(url), method)
-            post.payload = content.toByteArray(charset)
-            return URLFetchServiceFactory.getURLFetchService().fetch(post)
-        }
+public object HttpRequests {
+    public fun simpleRequest(
+            url : String, method : HTTPMethod, content : String, charset : String = "UTF-8"
+    ) : HTTPResponse {
+        val post = HTTPRequest(URL(url), method)
+        post.payload = content.toByteArray(charset)
+        return URLFetchServiceFactory.getURLFetchService().fetch(post)
     }
 }
