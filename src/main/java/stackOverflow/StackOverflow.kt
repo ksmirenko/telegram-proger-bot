@@ -25,6 +25,7 @@ public object StackOverflow {
 
     init {
         try {
+            // loading authorization data from locally stored file
             val prop = Properties()
             val inputStream = progerbot.MainServlet::class.java.
                     classLoader.getResourceAsStream("auth.properties")
@@ -45,8 +46,11 @@ public object StackOverflow {
         }
     }
 
+    //returns url user should follow to get authorized
     public fun getAuthUrl(chatId: String): String = "$authUrlWithoutState&state=$chatId"
 
+    //try to authorize to StackOverflow by providing code gotten when user was redirected
+    //from StackOverflow to our server
     public fun tryConfirmCode(chatId: String, code: String): Boolean {
         val url = "https://stackexchange.com/oauth/access_token"
         val stackOverflowPost = HTTPRequest(URL(url), HTTPMethod.POST)
@@ -64,6 +68,7 @@ public object StackOverflow {
         return success
     }
 
+    //just removes user`s authorization token if it`s stored
     public fun logOut(chatId: String): Boolean {
         val containsKey = authTokens.containsKey(chatId)
         if (containsKey)
@@ -71,6 +76,7 @@ public object StackOverflow {
         return containsKey
     }
 
+    //returns result of search on StackOverflow where parameter 'title' is a searching question
     public fun search(title: String): String {
         val url = "https://api.stackexchange.com/2.2/search?" +
                 "order=desc&sort=activity&intitle=$title&site=stackoverflow.com&key=$key"
@@ -88,7 +94,7 @@ public object StackOverflow {
         return searchRes.toString()
     }
 
-    public fun getUnreadNotifications(chatId: String): String {
+    public fun getUnreadInboxItems(chatId: String): String {
         if (!authTokens.containsKey(chatId))
             return "Yor are not authorized!"
         val authToken = authTokens.get(chatId)
@@ -98,11 +104,17 @@ public object StackOverflow {
             return "Cannot get notifications"
         val jsonObj = JSONParser().parse(res.content.toString(charset)) as JSONObject
         var jsonArr = JSONParser().parse((jsonObj).get("items").toString()) as JSONArray
+        //contains pairs of inner item types and item types to be shown to user
+        val itemTypes = mapOf<String, String>(Pair("comment", "comment"), Pair("new_answer", "answer"),
+                Pair("comment", "comment"), Pair("meta_question", "meta question"),
+                Pair("chat_message", "chat message"), Pair("careers_invitations", "careers invitation"),
+                Pair("careers_message", "careers message"), Pair("post_notice", "post notice"))
         var searchRes = StringBuilder()
         jsonArr.forEach {
             val message = it as JSONObject
             if (message.get("is_unread").toString() == "true")
-                searchRes.append(message.get("body").toString() + "\n" + message.get("link").toString() + "\n\n")
+                searchRes.append("Unread ${itemTypes.get(message.get("item_type"))}:\n" +
+                        message.get("body").toString() + "\n" + message.get("link").toString() + "\n\n")
         }
         val unreadMessages = searchRes.toString()
         if (unreadMessages.isEmpty())

@@ -149,7 +149,7 @@ public class MainServlet : HttpServlet() {
                     success = TelegramApi.sendText(chatId, stackOverflow.StackOverflow.search(splitMessage[1]))
                 }
                 text.startsWith("/stackoverflowsgetnotifications") -> {
-                    success = TelegramApi.sendText(chatId, stackOverflow.StackOverflow.getUnreadNotifications(chatId))
+                    success = TelegramApi.sendText(chatId, stackOverflow.StackOverflow.getUnreadInboxItems(chatId))
                 }
                 else -> {
                     success = TelegramApi.sendText(chatId, "NO U $text")
