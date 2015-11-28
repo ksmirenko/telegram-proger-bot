@@ -69,6 +69,10 @@ public object Highlighter {
         when (splitMessage[0]) {
             "/code" -> {
                 try {
+                    if (splitMessage.size < 3) {
+                        TelegramApi.sendText(chatId, "You should use the following format: /code <language> <code>")
+                        return true
+                    }
                     return highlightCodeText(splitMessage[1], splitMessage[2], chatId)
                 }
                 catch (e : Exception) {
@@ -83,7 +87,7 @@ public object Highlighter {
             "/code_file" -> {
                 if (splitMessage.size < 2) {
                     TelegramApi.sendText(chatId, "Error: you didn't name the language!")
-                    return false
+                    return true
                 }
                 pendingDocumentsUsers.put(chatId, splitMessage[1])
                 TelegramApi.sendText(
