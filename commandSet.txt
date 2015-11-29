@@ -1,0 +1,9 @@
+start - Start the bot
+help - Show help
+code - Highlight a code snippet
+code_file - Highlight a code file
+code_file_cancel - Cancel highlighting code file
+so_connect - Log in to StackOverflow
+so_logout - Log out from StackOverflow
+so_search - Search on StackOverflow
+so_inbox - Get messages from your StackOverflow account
