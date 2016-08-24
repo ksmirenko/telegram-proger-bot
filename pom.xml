@@ -22,7 +22,19 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+        <repository>
+            <id>jetbrains-all</id>
+            <url>http://repository.jetbrains.com/all</url>
+        </repository>
     </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>jetbrains-all</id>
+            <url>http://repository.jetbrains.com/all</url>
+        </pluginRepository>
+    </pluginRepositories>
+
 
     <dependencies>
         <!-- Compile/runtime dependencies -->

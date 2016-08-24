@@ -6,12 +6,11 @@ import com.google.appengine.api.urlfetch.HTTPResponse
 import com.google.appengine.api.urlfetch.URLFetchServiceFactory
 import java.net.URL
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 /**
  * Thread-safe log service.
  */
-public object Logger {
+object Logger {
     private val lock = ReentrantLock()
     private val isLogging = true
 
@@ -19,7 +18,7 @@ public object Logger {
      * Prints [str] to the log (standard error stream).
      * Messages written to err are shown as warnings in GAE logs.
      */
-    public fun println(str : String) {
+    fun println(str : String) {
         lock.withLock {
             if (isLogging)
                 System.err.println(str)
@@ -29,7 +28,7 @@ public object Logger {
     /**
      * Prints the stack trace of [exc] to the log (standard error stream).
      */
-    public fun println(exc : Exception) {
+    fun println(exc : Exception) {
         lock.withLock {
             if (isLogging)
                 exc.printStackTrace(System.err)
@@ -37,8 +36,8 @@ public object Logger {
     }
 }
 
-public object HttpRequests {
-    public fun simpleRequest(
+object HttpRequests {
+    fun simpleRequest(
             url : String, method : HTTPMethod, content : String, charset : String = "UTF-8"
     ) : HTTPResponse {
         val post = HTTPRequest(URL(url), method)

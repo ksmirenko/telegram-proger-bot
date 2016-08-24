@@ -16,7 +16,7 @@ import java.util.*
 /**
  * Performs all interaction with Telegram Bot API.
  */
-public object TelegramApi {
+object TelegramApi {
     private val CHARSET = "UTF-8"
     private val IS_TOKEN_HARDCODED = false
     /**
@@ -29,7 +29,8 @@ public object TelegramApi {
         if (!IS_TOKEN_HARDCODED) {
             // loading token from locally stored file
             val prop = Properties()
-            val inputStreamToken = MainServlet::class.java.classLoader.getResourceAsStream("auth.properties")
+            //val inputStreamToken = MainServlet::class.java.classLoader.getResourceAsStream("auth.properties")
+            val inputStreamToken = javaClass<MainServlet>().getClassLoader.getResourceAsStream("auth.properties")
             prop.load(inputStreamToken)
             telegramToken = prop.getProperty("json.telegramBotToken")
         }
@@ -39,7 +40,7 @@ public object TelegramApi {
         telegramApiUrl = "https://api.telegram.org/bot$telegramToken"
     }
 
-    public fun sendText(chatId : String, text : String) : Boolean {
+    fun sendText(chatId : String, text : String) : Boolean {
         try {
             Logger.println("Sending message: {$text}")
             val resp = HttpRequests.simpleRequest(
@@ -55,7 +56,7 @@ public object TelegramApi {
         }
     }
 
-    public fun sendImage(chatId : String, imageByteArray : ByteArray) : HTTPResponse {
+    fun sendImage(chatId : String, imageByteArray : ByteArray) : HTTPResponse {
         // creating Telegram POST request
         val telegramPost = HTTPRequest(URL("$telegramApiUrl/sendPhoto"), HTTPMethod.POST)
         val entity = (MultipartEntityBuilder.create()
@@ -75,7 +76,7 @@ public object TelegramApi {
         return URLFetchServiceFactory.getURLFetchService().fetch(telegramPost)
     }
 
-    public fun getFile(fileId : String) : File? {
+    fun getFile(fileId : String) : File? {
         try {
             val codeRequestResponse : HTTPResponse = URLFetchServiceFactory.getURLFetchService().fetch(
                     URL("$telegramApiUrl/getFile?file_id=$fileId"))
@@ -92,7 +93,7 @@ public object TelegramApi {
         }
     }
 
-    public fun getUpdates(offset : Int = 0) = HttpRequests.simpleRequest("$telegramApiUrl/getupdates",
+    fun getUpdates(offset : Int = 0) = HttpRequests.simpleRequest("$telegramApiUrl/getupdates",
             HTTPMethod.GET,
             "offset=${Integer.toString(offset)}&timeout=60"
     )
@@ -100,7 +101,7 @@ public object TelegramApi {
     /**
      * Downloads a file from Telegram server.
      */
-    public fun downloadTextFile(filePath : String) : String =
+    fun downloadTextFile(filePath : String) : String =
             URLFetchServiceFactory.getURLFetchService().fetch(
                     URL("https://api.telegram.org/file/bot$telegramToken/$filePath")
             ).content.toString(CHARSET)
